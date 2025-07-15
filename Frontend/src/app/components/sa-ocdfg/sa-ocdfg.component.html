@@ -1,0 +1,16 @@
+<div class="sa-ocdfg-container">
+  <div class="legend" *ngIf="!loading">
+    <div class="legend-items">
+      <div *ngFor="let type of objectTypeColors | keyvalue" class="legend-item">
+        <div class="legend-color" [style.background-color]="type.value"></div>
+        <span>{{ type.key }}</span>
+      </div>
+    </div>
+  </div>
+  
+  <div *ngIf="loading" class="loading">Loading graph...</div>
+  
+  <div *ngIf="!loading" class="graph-container">
+    <svg #svgContainer class="graph-svg"></svg>
+  </div>
+</div>

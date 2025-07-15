@@ -1,8 +1,9 @@
 <div class="app-container">
   <aside class="navigation-panel">
-    <app-navigation></app-navigation>
+    <app-navigation (itemSelected)="onNavigationChange($event)"></app-navigation>
   </aside>
   <main class="analytics-panel">
-    <app-events-table></app-events-table>
+    <app-events-table *ngIf="currentView === 'events'"></app-events-table>
+    <app-sa-ocdfg *ngIf="currentView === 'sa-ocdfg'"></app-sa-ocdfg>
   </main>
 </div>

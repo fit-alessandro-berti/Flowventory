@@ -1,0 +1,332 @@
+import { Component, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { OcelDataService } from '../../services/ocel-data.service';
+import { OCELData, OCELEvent, OCELObject } from '../../models/ocel.model';
+import { GraphNode, GraphEdge, DirectlyFollowsRelation } from '../../models/graph.model';
+import ELK from 'elkjs/lib/elk.bundled.js';
+
+@Component({
+  selector: 'app-sa-ocdfg',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './sa-ocdfg.component.html',
+  styleUrl: './sa-ocdfg.component.scss'
+})
+export class SaOcdfgComponent implements OnInit, AfterViewInit {
+  @ViewChild('svgContainer', { static: false }) svgContainer!: ElementRef<SVGSVGElement>;
+  
+  loading = true;
+  nodes: GraphNode[] = [];
+  edges: GraphEdge[] = [];
+  
+  private elk = new ELK();
+  private colorPalette = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+  ];
+  objectTypeColors: { [key: string]: string } = {};
+
+  constructor(private ocelDataService: OcelDataService) {}
+
+  ngOnInit(): void {
+    this.ocelDataService.ocelData$.subscribe(data => {
+      if (data) {
+        this.computeDirectlyFollowsGraph(data);
+        this.loading = false;
+      }
+    });
+  }
+
+  ngAfterViewInit(): void {
+    if (!this.loading) {
+      this.renderGraph();
+    }
+  }
+
+  private computeDirectlyFollowsGraph(data: OCELData): void {
+    // Assign colors to object types
+    data.objectTypes.forEach((type, index) => {
+      this.objectTypeColors[type.name] = this.colorPalette[index % this.colorPalette.length];
+    });
+
+    // Group events by object
+    const eventsByObject: { [objectId: string]: OCELEvent[] } = {};
+    
+    data.events.forEach(event => {
+      event.relationships.forEach(rel => {
+        if (!eventsByObject[rel.objectId]) {
+          eventsByObject[rel.objectId] = [];
+        }
+        eventsByObject[rel.objectId].push(event);
+      });
+    });
+
+    // Compute directly-follows relations for each object
+    const dfRelations: DirectlyFollowsRelation[] = [];
+    const nodeSet = new Set<string>();
+    const edgeMap = new Map<string, GraphEdge>();
+
+    Object.entries(eventsByObject).forEach(([objectId, events]) => {
+      const object = data.objects.find(obj => obj.id === objectId);
+      if (!object) return;
+
+      // Sort events by timestamp
+      events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+      // Add start node
+      const startNodeId = `start_${object.type}`;
+      nodeSet.add(startNodeId);
+
+      // Add directly-follows relations
+      for (let i = 0; i < events.length; i++) {
+        const currentEvent = events[i];
+        nodeSet.add(currentEvent.type);
+
+        if (i === 0) {
+          // Connect start to first activity
+          const edgeKey = `${startNodeId}->${currentEvent.type}_${object.type}`;
+          if (!edgeMap.has(edgeKey)) {
+            edgeMap.set(edgeKey, {
+              id: edgeKey,
+              source: startNodeId,
+              target: currentEvent.type,
+              objectType: object.type,
+              color: this.objectTypeColors[object.type],
+              count: 1
+            });
+          } else {
+            edgeMap.get(edgeKey)!.count++;
+          }
+        }
+
+        if (i < events.length - 1) {
+          const nextEvent = events[i + 1];
+          const edgeKey = `${currentEvent.type}->${nextEvent.type}_${object.type}`;
+          if (!edgeMap.has(edgeKey)) {
+            edgeMap.set(edgeKey, {
+              id: edgeKey,
+              source: currentEvent.type,
+              target: nextEvent.type,
+              objectType: object.type,
+              color: this.objectTypeColors[object.type],
+              count: 1
+            });
+          } else {
+            edgeMap.get(edgeKey)!.count++;
+          }
+        } else {
+          // Connect last activity to end
+          const endNodeId = `end_${object.type}`;
+          nodeSet.add(endNodeId);
+          const edgeKey = `${currentEvent.type}->${endNodeId}_${object.type}`;
+          if (!edgeMap.has(edgeKey)) {
+            edgeMap.set(edgeKey, {
+              id: edgeKey,
+              source: currentEvent.type,
+              target: endNodeId,
+              objectType: object.type,
+              color: this.objectTypeColors[object.type],
+              count: 1
+            });
+          } else {
+            edgeMap.get(edgeKey)!.count++;
+          }
+        }
+      }
+    });
+
+    // Create nodes
+    this.nodes = Array.from(nodeSet).map(nodeId => {
+      if (nodeId.startsWith('start_')) {
+        const objectType = nodeId.substring(6);
+        return {
+          id: nodeId,
+          label: 'START',
+          objectType: objectType,
+          color: this.objectTypeColors[objectType],
+          isStart: true
+        };
+      } else if (nodeId.startsWith('end_')) {
+        const objectType = nodeId.substring(4);
+        return {
+          id: nodeId,
+          label: 'END',
+          objectType: objectType,
+          color: this.objectTypeColors[objectType],
+          isEnd: true
+        };
+      } else {
+        return {
+          id: nodeId,
+          label: nodeId,
+          objectType: 'activity',
+          color: '#ffffff'
+        };
+      }
+    });
+
+    // Get top 100 most frequent edges
+    const allEdges = Array.from(edgeMap.values());
+    this.edges = allEdges
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 100);
+
+    // Filter nodes to only include those connected to the selected edges
+    const connectedNodes = new Set<string>();
+    this.edges.forEach(edge => {
+      connectedNodes.add(edge.source);
+      connectedNodes.add(edge.target);
+    });
+
+    this.nodes = this.nodes.filter(node => connectedNodes.has(node.id));
+
+    // Render graph after computing
+    setTimeout(() => this.renderGraph(), 100);
+  }
+
+  private async renderGraph(): Promise<void> {
+    if (!this.svgContainer || this.nodes.length === 0) return;
+
+    // Prepare ELK graph
+    const elkGraph = {
+      id: 'root',
+      layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+        'elk.spacing.nodeNode': '80',
+        'elk.layered.thoroughness': '100'
+      },
+      children: this.nodes.map(node => ({
+        id: node.id,
+        width: node.isStart || node.isEnd ? 60 : 150,
+        height: node.isStart || node.isEnd ? 60 : 40,
+        labels: [{ text: node.label }]
+      })),
+      edges: this.edges.map(edge => ({
+        id: edge.id,
+        sources: [edge.source],
+        targets: [edge.target]
+      }))
+    };
+
+    try {
+      const layout = await this.elk.layout(elkGraph);
+      this.drawGraph(layout);
+    } catch (error) {
+      console.error('Error laying out graph:', error);
+    }
+  }
+
+  private drawGraph(layout: any): void {
+    const svg = this.svgContainer.nativeElement;
+    svg.innerHTML = '';
+
+    // Set viewBox and dimensions based on layout
+    const padding = 50;
+    const width = layout.width + 2 * padding;
+    const height = layout.height + 2 * padding;
+    svg.setAttribute('viewBox', `${-padding} ${-padding} ${width} ${height}`);
+    svg.setAttribute('width', width.toString());
+    svg.setAttribute('height', height.toString());
+
+    // Draw edges
+    const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    edgeGroup.setAttribute('class', 'edges');
+    
+    layout.edges.forEach((edge: any) => {
+      const graphEdge = this.edges.find(e => e.id === edge.id);
+      if (!graphEdge) return;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const points = edge.sections[0].bendPoints || [];
+      const startPoint = edge.sections[0].startPoint;
+      const endPoint = edge.sections[0].endPoint;
+      
+      let d = `M ${startPoint.x} ${startPoint.y}`;
+      points.forEach((point: any) => {
+        d += ` L ${point.x} ${point.y}`;
+      });
+      d += ` L ${endPoint.x} ${endPoint.y}`;
+      
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', graphEdge.color);
+      path.setAttribute('stroke-width', Math.min(1 + graphEdge.count * 0.5, 5).toString());
+      path.setAttribute('fill', 'none');
+      path.setAttribute('marker-end', `url(#arrowhead-${graphEdge.objectType})`);
+      
+      edgeGroup.appendChild(path);
+    });
+    
+    svg.appendChild(edgeGroup);
+
+    // Draw nodes
+    const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    nodeGroup.setAttribute('class', 'nodes');
+    
+    layout.children.forEach((node: any) => {
+      const graphNode = this.nodes.find(n => n.id === node.id);
+      if (!graphNode) return;
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      
+      if (graphNode.isStart || graphNode.isEnd) {
+        // Draw circle for start/end nodes
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', (node.x + node.width / 2).toString());
+        circle.setAttribute('cy', (node.y + node.height / 2).toString());
+        circle.setAttribute('r', '20');
+        circle.setAttribute('fill', graphNode.color);
+        circle.setAttribute('stroke', '#333');
+        circle.setAttribute('stroke-width', '2');
+        g.appendChild(circle);
+      } else {
+        // Draw rectangle for activity nodes
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', node.x.toString());
+        rect.setAttribute('y', node.y.toString());
+        rect.setAttribute('width', node.width.toString());
+        rect.setAttribute('height', node.height.toString());
+        rect.setAttribute('fill', graphNode.color);
+        rect.setAttribute('stroke', '#333');
+        rect.setAttribute('stroke-width', '2');
+        rect.setAttribute('rx', '5');
+        g.appendChild(rect);
+      }
+
+      // Add text
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', (node.x + node.width / 2).toString());
+      text.setAttribute('y', (node.y + node.height / 2 + 5).toString());
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('font-size', '12');
+      text.setAttribute('fill', graphNode.isStart || graphNode.isEnd ? 'white' : 'black');
+      text.textContent = graphNode.label;
+      g.appendChild(text);
+      
+      nodeGroup.appendChild(g);
+    });
+    
+    svg.appendChild(nodeGroup);
+
+    // Add arrow markers
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    Object.entries(this.objectTypeColors).forEach(([type, color]) => {
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+      marker.setAttribute('id', `arrowhead-${type}`);
+      marker.setAttribute('markerWidth', '10');
+      marker.setAttribute('markerHeight', '10');
+      marker.setAttribute('refX', '9');
+      marker.setAttribute('refY', '3');
+      marker.setAttribute('orient', 'auto');
+      
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '0 0, 10 3, 0 6');
+      polygon.setAttribute('fill', color);
+      
+      marker.appendChild(polygon);
+      defs.appendChild(marker);
+    });
+    svg.appendChild(defs);
+  }
+}

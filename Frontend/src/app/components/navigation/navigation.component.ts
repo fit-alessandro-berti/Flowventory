@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -9,15 +9,17 @@ import { CommonModule } from '@angular/common';
   styleUrl: './navigation.component.scss'
 })
 export class NavigationComponent {
+  @Output() itemSelected = new EventEmitter<string>();
+  
   menuItems = [
     { label: 'Events', route: 'events', icon: '📋' },
-    { label: 'Objects', route: 'objects', icon: '📦' },
-    { label: 'Analytics', route: 'analytics', icon: '📊' }
+    { label: 'SA-OCDFG', route: 'sa-ocdfg', icon: '🔀' }
   ];
 
   activeItem = 'events';
 
   selectItem(item: string): void {
     this.activeItem = item;
+    this.itemSelected.emit(item);
   }
 }
