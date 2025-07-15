@@ -17,6 +17,45 @@
 
 .graph-svg {
   display: block;
+  
+  ::ng-deep {
+    .edge-group, .node-group {
+      transition: opacity 0.3s ease;
+    }
+    
+    .blurred {
+      opacity: 0.2;
+    }
+    
+    .highlighted {
+      opacity: 1 !important;
+    }
+    
+    .edge-path {
+      transition: stroke-width 0.2s ease;
+    }
+    
+    .edge-group.highlighted .edge-path {
+      stroke-width: 5 !important;
+    }
+    
+    .node-shape {
+      transition: stroke-width 0.2s ease, filter 0.2s ease;
+    }
+    
+    .node-group.highlighted .node-shape {
+      stroke-width: 3 !important;
+      filter: drop-shadow(0 0 8px rgba(0,0,0,0.3));
+    }
+    
+    .edge-label {
+      pointer-events: none;
+    }
+    
+    #edge-tooltip {
+      z-index: 1000;
+    }
+  }
 }
 
 .legend {
@@ -106,3 +145,4 @@
     border-color: #007bff;
   }
 }
+

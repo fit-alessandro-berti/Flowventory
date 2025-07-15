@@ -30,6 +30,9 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
   
   decorationOptions = ['Frequency', 'Average Time'];
   selectedDecoration = 'Frequency';
+  
+  private hoveredEdgeId: string | null = null;
+  private hoveredNodeId: string | null = null;
 
   constructor(private ocelDataService: OcelDataService) {}
 
@@ -345,6 +348,10 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     svg.setAttribute('viewBox', `${-padding} ${-padding} ${width} ${height}`);
     svg.setAttribute('width', width.toString());
     svg.setAttribute('height', height.toString());
+    
+    // Create main group for the graph
+    const mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    mainGroup.setAttribute('class', 'graph-main');
 
     // Draw edges
     const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -353,6 +360,12 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     layout.edges.forEach((edge: any) => {
       const graphEdge = this.edges.find(e => e.id === edge.id);
       if (!graphEdge) return;
+
+      const edgeElement = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      edgeElement.setAttribute('class', 'edge-group');
+      edgeElement.setAttribute('data-edge-id', graphEdge.id);
+      edgeElement.setAttribute('data-source', graphEdge.source);
+      edgeElement.setAttribute('data-target', graphEdge.target);
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       const points = edge.sections[0].bendPoints || [];
@@ -370,56 +383,32 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       path.setAttribute('stroke-width', Math.min(1 + graphEdge.count * 0.5, 5).toString());
       path.setAttribute('fill', 'none');
       path.setAttribute('marker-end', `url(#arrowhead-${graphEdge.objectType})`);
+      path.setAttribute('class', 'edge-path');
       
-      edgeGroup.appendChild(path);
+      // Create invisible wider path for better hover detection
+      const hoverPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hoverPath.setAttribute('d', d);
+      hoverPath.setAttribute('stroke', 'transparent');
+      hoverPath.setAttribute('stroke-width', '20');
+      hoverPath.setAttribute('fill', 'none');
+      hoverPath.style.cursor = 'pointer';
       
-      // Add edge label if not going to/from start/end nodes
-      if (!graphEdge.source.startsWith('start_') && !graphEdge.target.startsWith('end_')) {
-        const midX = (startPoint.x + endPoint.x) / 2;
-        const midY = (startPoint.y + endPoint.y) / 2;
-        
-        const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        
-        // Create text element first to measure it
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', midX.toString());
-        text.setAttribute('y', midY.toString());
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('dominant-baseline', 'middle');
-        text.setAttribute('font-size', '10');
-        text.setAttribute('font-weight', 'bold');
-        
-        let labelText = '';
-        if (this.selectedDecoration === 'Frequency') {
-          labelText = graphEdge.count.toString();
-        } else if (this.selectedDecoration === 'Average Time' && graphEdge.averageTime !== undefined) {
-          labelText = this.formatDuration(graphEdge.averageTime);
-        }
-        
-        text.textContent = labelText;
-        
-        // Create background rect
-        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        const padding = 3;
-        const textWidth = labelText.length * 6; // Approximate width
-        const textHeight = 12;
-        
-        rect.setAttribute('x', (midX - textWidth / 2 - padding).toString());
-        rect.setAttribute('y', (midY - textHeight / 2 - padding).toString());
-        rect.setAttribute('width', (textWidth + 2 * padding).toString());
-        rect.setAttribute('height', (textHeight + 2 * padding).toString());
-        rect.setAttribute('fill', 'white');
-        rect.setAttribute('stroke', graphEdge.color);
-        rect.setAttribute('stroke-width', '0.5');
-        rect.setAttribute('rx', '2');
-        
-        labelGroup.appendChild(rect);
-        labelGroup.appendChild(text);
-        edgeGroup.appendChild(labelGroup);
-      }
+      edgeElement.appendChild(path);
+      edgeElement.appendChild(hoverPath);
+      
+      // Store edge data for hover
+      edgeElement.setAttribute('data-midx', ((startPoint.x + endPoint.x) / 2).toString());
+      edgeElement.setAttribute('data-midy', ((startPoint.y + endPoint.y) / 2).toString());
+      
+      // Add hover event listeners with mouse position tracking
+      edgeElement.addEventListener('mouseenter', (event: MouseEvent) => this.onEdgeHover(graphEdge.id, event));
+      edgeElement.addEventListener('mousemove', (event: MouseEvent) => this.updateLabelPosition(graphEdge.id, event));
+      edgeElement.addEventListener('mouseleave', () => this.onEdgeLeave());
+      
+      edgeGroup.appendChild(edgeElement);
     });
     
-    svg.appendChild(edgeGroup);
+    mainGroup.appendChild(edgeGroup);
 
     // Draw nodes
     const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -429,7 +418,10 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       const graphNode = this.nodes.find(n => n.id === node.id);
       if (!graphNode) return;
 
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      const nodeElement = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      nodeElement.setAttribute('class', 'node-group');
+      nodeElement.setAttribute('data-node-id', graphNode.id);
+      nodeElement.style.cursor = 'pointer';
       
       if (graphNode.isStart || graphNode.isEnd) {
         // Draw circle for start/end nodes
@@ -440,7 +432,8 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         circle.setAttribute('fill', graphNode.color);
         circle.setAttribute('stroke', '#333');
         circle.setAttribute('stroke-width', '2');
-        g.appendChild(circle);
+        circle.setAttribute('class', 'node-shape');
+        nodeElement.appendChild(circle);
       } else {
         // Draw rectangle for activity nodes
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -452,7 +445,8 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         rect.setAttribute('stroke', '#333');
         rect.setAttribute('stroke-width', '2');
         rect.setAttribute('rx', '5');
-        g.appendChild(rect);
+        rect.setAttribute('class', 'node-shape');
+        nodeElement.appendChild(rect);
       }
 
       // Add text with line wrapping
@@ -482,12 +476,42 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         });
       }
       
-      g.appendChild(text);
+      nodeElement.appendChild(text);
       
-      nodeGroup.appendChild(g);
+      // Add hover event listeners
+      nodeElement.addEventListener('mouseenter', () => this.onNodeHover(graphNode.id));
+      nodeElement.addEventListener('mouseleave', () => this.onNodeLeave());
+      
+      nodeGroup.appendChild(nodeElement);
     });
     
-    svg.appendChild(nodeGroup);
+    mainGroup.appendChild(nodeGroup);
+    
+    // Create tooltip element
+    const tooltip = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    tooltip.setAttribute('id', 'edge-tooltip');
+    tooltip.style.display = 'none';
+    tooltip.style.pointerEvents = 'none';
+    
+    const tooltipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    tooltipRect.setAttribute('fill', 'white');
+    tooltipRect.setAttribute('stroke', '#333');
+    tooltipRect.setAttribute('stroke-width', '1');
+    tooltipRect.setAttribute('rx', '3');
+    tooltipRect.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))';
+    
+    const tooltipText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    tooltipText.setAttribute('text-anchor', 'middle');
+    tooltipText.setAttribute('dominant-baseline', 'middle');
+    tooltipText.setAttribute('font-size', '12');
+    tooltipText.setAttribute('font-weight', 'bold');
+    tooltipText.setAttribute('fill', '#333');
+    
+    tooltip.appendChild(tooltipRect);
+    tooltip.appendChild(tooltipText);
+    mainGroup.appendChild(tooltip);
+    
+    svg.appendChild(mainGroup);
 
     // Add arrow markers
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -508,5 +532,140 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       defs.appendChild(marker);
     });
     svg.appendChild(defs);
+  }
+
+  private onEdgeHover(edgeId: string, event: MouseEvent): void {
+    this.hoveredEdgeId = edgeId;
+    const svg = this.svgContainer.nativeElement;
+    const edge = this.edges.find(e => e.id === edgeId);
+    if (!edge) return;
+
+    // Add blur to all elements
+    svg.querySelectorAll('.node-group, .edge-group').forEach(el => {
+      el.classList.add('blurred');
+    });
+
+    // Remove blur from hovered edge and connected nodes
+    const hoveredEdge = svg.querySelector(`[data-edge-id="${edgeId}"]`);
+    if (hoveredEdge) {
+      hoveredEdge.classList.remove('blurred');
+      hoveredEdge.classList.add('highlighted');
+    }
+
+    // Highlight connected nodes
+    svg.querySelector(`[data-node-id="${edge.source}"]`)?.classList.remove('blurred');
+    svg.querySelector(`[data-node-id="${edge.target}"]`)?.classList.remove('blurred');
+    
+    // Show tooltip if not start/end edge
+    if (!edge.source.startsWith('start_') && !edge.target.startsWith('end_')) {
+      this.showTooltip(edge, event);
+    }
+  }
+  
+  private updateLabelPosition(edgeId: string, event: MouseEvent): void {
+    const edge = this.edges.find(e => e.id === edgeId);
+    if (!edge || edge.source.startsWith('start_') || edge.target.startsWith('end_')) return;
+    this.showTooltip(edge, event);
+  }
+  
+  private showTooltip(edge: GraphEdge, event: MouseEvent): void {
+    const svg = this.svgContainer.nativeElement;
+    const tooltip = svg.querySelector('#edge-tooltip') as SVGGElement;
+    if (!tooltip) return;
+    
+    const tooltipText = tooltip.querySelector('text') as SVGTextElement;
+    const tooltipRect = tooltip.querySelector('rect') as SVGRectElement;
+    
+    // Set text based on selected decoration
+    let labelText = '';
+    if (this.selectedDecoration === 'Frequency') {
+      labelText = edge.count.toString();
+    } else if (this.selectedDecoration === 'Average Time' && edge.averageTime !== undefined) {
+      labelText = this.formatDuration(edge.averageTime);
+    }
+    
+    tooltipText.textContent = labelText;
+    
+    // Get SVG coordinates from mouse position
+    const pt = svg.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM()!.inverse());
+    
+    // Position tooltip
+    const padding = 5;
+    const textWidth = labelText.length * 8;
+    const textHeight = 20;
+    
+    tooltipText.setAttribute('x', svgP.x.toString());
+    tooltipText.setAttribute('y', (svgP.y - 15).toString());
+    
+    tooltipRect.setAttribute('x', (svgP.x - textWidth / 2 - padding).toString());
+    tooltipRect.setAttribute('y', (svgP.y - 15 - textHeight / 2 - padding).toString());
+    tooltipRect.setAttribute('width', (textWidth + 2 * padding).toString());
+    tooltipRect.setAttribute('height', (textHeight + 2 * padding).toString());
+    tooltipRect.setAttribute('stroke', edge.color);
+    
+    tooltip.style.display = 'block';
+  }
+
+  private onEdgeLeave(): void {
+    this.hoveredEdgeId = null;
+    const svg = this.svgContainer.nativeElement;
+    
+    // Remove all blur and highlight classes
+    svg.querySelectorAll('.node-group, .edge-group').forEach(el => {
+      el.classList.remove('blurred', 'highlighted');
+    });
+    
+    // Hide tooltip
+    const tooltip = svg.querySelector('#edge-tooltip') as SVGElement;
+    if (tooltip) {
+      tooltip.style.display = 'none';
+    }
+  }
+
+  private onNodeHover(nodeId: string): void {
+    this.hoveredNodeId = nodeId;
+    const svg = this.svgContainer.nativeElement;
+
+    // Add blur to all elements
+    svg.querySelectorAll('.node-group, .edge-group').forEach(el => {
+      el.classList.add('blurred');
+    });
+
+    // Remove blur from hovered node
+    const hoveredNode = svg.querySelector(`[data-node-id="${nodeId}"]`);
+    if (hoveredNode) {
+      hoveredNode.classList.remove('blurred');
+      hoveredNode.classList.add('highlighted');
+    }
+
+    // Find and highlight outgoing edges and their target nodes
+    this.edges.forEach(edge => {
+      if (edge.source === nodeId) {
+        const edgeElement = svg.querySelector(`[data-edge-id="${edge.id}"]`);
+        if (edgeElement) {
+          edgeElement.classList.remove('blurred');
+          edgeElement.classList.add('highlighted');
+        }
+        
+        // Highlight target node
+        const targetNode = svg.querySelector(`[data-node-id="${edge.target}"]`);
+        if (targetNode) {
+          targetNode.classList.remove('blurred');
+        }
+      }
+    });
+  }
+
+  private onNodeLeave(): void {
+    this.hoveredNodeId = null;
+    const svg = this.svgContainer.nativeElement;
+    
+    // Remove all blur and highlight classes
+    svg.querySelectorAll('.node-group, .edge-group').forEach(el => {
+      el.classList.remove('blurred', 'highlighted');
+    });
   }
 }
