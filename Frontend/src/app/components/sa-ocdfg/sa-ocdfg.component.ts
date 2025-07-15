@@ -129,10 +129,12 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
               objectType: object.type,
               color: this.objectTypeColors[object.type],
               count: 1,
-              times: []
+              times: [0] // 0 seconds for start edges
             });
           } else {
-            edgeMap.get(edgeKey)!.count++;
+            const edge = edgeMap.get(edgeKey)!;
+            edge.count++;
+            edge.times!.push(0); // Always 0 for start edges
           }
         }
 
@@ -556,15 +558,15 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     svg.querySelector(`[data-node-id="${edge.source}"]`)?.classList.remove('blurred');
     svg.querySelector(`[data-node-id="${edge.target}"]`)?.classList.remove('blurred');
     
-    // Show tooltip if not start/end edge
-    if (!edge.source.startsWith('start_') && !edge.target.startsWith('end_')) {
+    // Show tooltip if not end edge (allow start edges)
+    if (!edge.target.startsWith('end_')) {
       this.showTooltip(edge, event);
     }
   }
   
   private updateLabelPosition(edgeId: string, event: MouseEvent): void {
     const edge = this.edges.find(e => e.id === edgeId);
-    if (!edge || edge.source.startsWith('start_') || edge.target.startsWith('end_')) return;
+    if (!edge || edge.target.startsWith('end_')) return;
     this.showTooltip(edge, event);
   }
   
