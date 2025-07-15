@@ -13,7 +13,8 @@ export class NavigationComponent {
   
   menuItems = [
     { label: 'Events', route: 'events', icon: '📋' },
-    { label: 'SA-OCDFG', route: 'sa-ocdfg', icon: '🔀' }
+    { label: 'SA-OCDFG', route: 'sa-ocdfg', icon: '🔀' },
+    { label: 'Causal Explorer', route: 'causal-explorer', icon: '🔍' }
   ];
 
   activeItem = 'events';
