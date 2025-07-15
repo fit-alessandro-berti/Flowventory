@@ -11,6 +11,18 @@
     </div>
   </div>
   
+  <div class="decoration-selector" *ngIf="!loading">
+    <div class="decoration-label">Edge decoration:</div>
+    <div class="decoration-options">
+      <button *ngFor="let option of decorationOptions"
+              class="decoration-option"
+              [class.active]="selectedDecoration === option"
+              (click)="selectDecoration(option)">
+        {{ option }}
+      </button>
+    </div>
+  </div>
+  
   <div *ngIf="loading" class="loading">Loading graph...</div>
   
   <div *ngIf="!loading" class="graph-container">

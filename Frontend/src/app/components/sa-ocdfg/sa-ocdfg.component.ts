@@ -27,6 +27,9 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
   objectTypeColors: { [key: string]: string } = {};
   activeObjectTypes: Set<string> = new Set();
   private ocelData: OCELData | null = null;
+  
+  decorationOptions = ['Frequency', 'Average Time'];
+  selectedDecoration = 'Frequency';
 
   constructor(private ocelDataService: OcelDataService) {}
 
@@ -65,6 +68,12 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
 
   isObjectTypeActive(typeName: string): boolean {
     return this.activeObjectTypes.has(typeName);
+  }
+
+  selectDecoration(decoration: string): void {
+    this.selectedDecoration = decoration;
+    // Rerender the graph with new decoration
+    setTimeout(() => this.renderGraph(), 100);
   }
 
   private computeDirectlyFollowsGraph(data: OCELData): void {
@@ -116,7 +125,8 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
               target: currentEvent.type,
               objectType: object.type,
               color: this.objectTypeColors[object.type],
-              count: 1
+              count: 1,
+              times: []
             });
           } else {
             edgeMap.get(edgeKey)!.count++;
@@ -126,6 +136,8 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         if (i < events.length - 1) {
           const nextEvent = events[i + 1];
           const edgeKey = `${currentEvent.type}->${nextEvent.type}_${object.type}`;
+          const timeDiff = new Date(nextEvent.time).getTime() - new Date(currentEvent.time).getTime();
+          
           if (!edgeMap.has(edgeKey)) {
             edgeMap.set(edgeKey, {
               id: edgeKey,
@@ -133,10 +145,13 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
               target: nextEvent.type,
               objectType: object.type,
               color: this.objectTypeColors[object.type],
-              count: 1
+              count: 1,
+              times: [timeDiff]
             });
           } else {
-            edgeMap.get(edgeKey)!.count++;
+            const edge = edgeMap.get(edgeKey)!;
+            edge.count++;
+            edge.times!.push(timeDiff);
           }
         } else {
           // Connect last activity to end
@@ -150,7 +165,8 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
               target: endNodeId,
               objectType: object.type,
               color: this.objectTypeColors[object.type],
-              count: 1
+              count: 1,
+              times: []
             });
           } else {
             edgeMap.get(edgeKey)!.count++;
@@ -189,8 +205,16 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       }
     });
 
-    // Get top 100 most frequent edges
+    // Calculate average times for all edges
     const allEdges = Array.from(edgeMap.values());
+    allEdges.forEach(edge => {
+      if (edge.times && edge.times.length > 0) {
+        const sum = edge.times.reduce((a, b) => a + b, 0);
+        edge.averageTime = sum / edge.times.length;
+      }
+    });
+    
+    // Get top 100 most frequent edges
     this.edges = allEdges
       .sort((a, b) => b.count - a.count)
       .slice(0, 100);
@@ -237,6 +261,23 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     }
     
     return lines;
+  }
+
+  private formatDuration(milliseconds: number): string {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) {
+      return `${days}d ${hours % 24}h`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`;
+    } else {
+      return `${seconds}s`;
+    }
   }
 
   private calculateNodeSize(label: string, isStartEnd: boolean): { width: number; height: number } {
@@ -331,6 +372,51 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       path.setAttribute('marker-end', `url(#arrowhead-${graphEdge.objectType})`);
       
       edgeGroup.appendChild(path);
+      
+      // Add edge label if not going to/from start/end nodes
+      if (!graphEdge.source.startsWith('start_') && !graphEdge.target.startsWith('end_')) {
+        const midX = (startPoint.x + endPoint.x) / 2;
+        const midY = (startPoint.y + endPoint.y) / 2;
+        
+        const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        
+        // Create text element first to measure it
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', midX.toString());
+        text.setAttribute('y', midY.toString());
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('font-weight', 'bold');
+        
+        let labelText = '';
+        if (this.selectedDecoration === 'Frequency') {
+          labelText = graphEdge.count.toString();
+        } else if (this.selectedDecoration === 'Average Time' && graphEdge.averageTime !== undefined) {
+          labelText = this.formatDuration(graphEdge.averageTime);
+        }
+        
+        text.textContent = labelText;
+        
+        // Create background rect
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        const padding = 3;
+        const textWidth = labelText.length * 6; // Approximate width
+        const textHeight = 12;
+        
+        rect.setAttribute('x', (midX - textWidth / 2 - padding).toString());
+        rect.setAttribute('y', (midY - textHeight / 2 - padding).toString());
+        rect.setAttribute('width', (textWidth + 2 * padding).toString());
+        rect.setAttribute('height', (textHeight + 2 * padding).toString());
+        rect.setAttribute('fill', 'white');
+        rect.setAttribute('stroke', graphEdge.color);
+        rect.setAttribute('stroke-width', '0.5');
+        rect.setAttribute('rx', '2');
+        
+        labelGroup.appendChild(rect);
+        labelGroup.appendChild(text);
+        edgeGroup.appendChild(labelGroup);
+      }
     });
     
     svg.appendChild(edgeGroup);

@@ -15,6 +15,8 @@ export interface GraphEdge {
   objectType: string;
   color: string;
   count: number;
+  averageTime?: number; // in milliseconds
+  times?: number[]; // to track individual times for averaging
 }
 
 export interface DirectlyFollowsRelation {
