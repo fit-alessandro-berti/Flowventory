@@ -467,9 +467,27 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       
       edgeGroup.appendChild(path);
 
-      // Add coefficient label
-      const midX = (startPoint.x + endPoint.x) / 2;
-      const midY = (startPoint.y + endPoint.y) / 2;
+      // Add coefficient label - calculate midpoint along the actual path
+      let midX, midY;
+      if (points.length > 0) {
+        // If there are bend points, use the middle bend point or calculate between two middle points
+        const midIndex = Math.floor(points.length / 2);
+        if (points.length % 2 === 1) {
+          // Odd number of bend points - use the middle one
+          midX = points[midIndex].x;
+          midY = points[midIndex].y;
+        } else {
+          // Even number of bend points - calculate between two middle ones
+          const p1 = points[midIndex - 1];
+          const p2 = points[midIndex];
+          midX = (p1.x + p2.x) / 2;
+          midY = (p1.y + p2.y) / 2;
+        }
+      } else {
+        // No bend points - use midpoint between start and end
+        midX = (startPoint.x + endPoint.x) / 2;
+        midY = (startPoint.y + endPoint.y) / 2;
+      }
       
       const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.setAttribute('x', midX.toString());
