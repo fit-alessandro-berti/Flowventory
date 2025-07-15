@@ -184,6 +184,54 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     setTimeout(() => this.renderGraph(), 100);
   }
 
+  private wrapText(text: string, maxLength: number = 18): string[] {
+    if (text.length <= maxLength) return [text];
+    
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      if (currentLine.length + word.length + 1 <= maxLength) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    // If no word breaks were found, force break at character limit
+    if (lines.length === 1 && lines[0].length > maxLength) {
+      const result: string[] = [];
+      let str = lines[0];
+      while (str.length > 0) {
+        result.push(str.substring(0, maxLength));
+        str = str.substring(maxLength);
+      }
+      return result;
+    }
+    
+    return lines;
+  }
+
+  private calculateNodeSize(label: string, isStartEnd: boolean): { width: number; height: number } {
+    if (isStartEnd) {
+      return { width: 60, height: 60 };
+    }
+    
+    const lines = this.wrapText(label);
+    const charWidth = 8; // Approximate character width
+    const lineHeight = 20; // Line height
+    const padding = 20; // Padding
+    
+    const maxLineLength = Math.max(...lines.map(line => line.length));
+    const width = Math.max(maxLineLength * charWidth + padding, 80);
+    const height = lines.length * lineHeight + padding;
+    
+    return { width, height };
+  }
+
   private async renderGraph(): Promise<void> {
     if (!this.svgContainer || this.nodes.length === 0) return;
 
@@ -197,12 +245,15 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         'elk.spacing.nodeNode': '80',
         'elk.layered.thoroughness': '100'
       },
-      children: this.nodes.map(node => ({
-        id: node.id,
-        width: node.isStart || node.isEnd ? 60 : 150,
-        height: node.isStart || node.isEnd ? 60 : 40,
-        labels: [{ text: node.label }]
-      })),
+      children: this.nodes.map(node => {
+        const size = this.calculateNodeSize(node.label, node.isStart || node.isEnd || false);
+        return {
+          id: node.id,
+          width: size.width,
+          height: size.height,
+          labels: [{ text: node.label }]
+        };
+      }),
       edges: this.edges.map(edge => ({
         id: edge.id,
         sources: [edge.source],
@@ -294,14 +345,33 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         g.appendChild(rect);
       }
 
-      // Add text
+      // Add text with line wrapping
       const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       text.setAttribute('x', (node.x + node.width / 2).toString());
-      text.setAttribute('y', (node.y + node.height / 2 + 5).toString());
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('font-size', '12');
       text.setAttribute('fill', graphNode.isStart || graphNode.isEnd ? 'white' : 'black');
-      text.textContent = graphNode.label;
+      
+      if (graphNode.isStart || graphNode.isEnd) {
+        // Single line for start/end nodes
+        text.setAttribute('y', (node.y + node.height / 2 + 5).toString());
+        text.textContent = graphNode.label;
+      } else {
+        // Multi-line for activity nodes
+        const lines = this.wrapText(graphNode.label);
+        const lineHeight = 20;
+        const startY = node.y + node.height / 2 - (lines.length - 1) * lineHeight / 2;
+        
+        lines.forEach((line, index) => {
+          const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+          tspan.setAttribute('x', (node.x + node.width / 2).toString());
+          tspan.setAttribute('y', (startY + index * lineHeight).toString());
+          tspan.setAttribute('dy', '0.35em');
+          tspan.textContent = line;
+          text.appendChild(tspan);
+        });
+      }
+      
       g.appendChild(text);
       
       nodeGroup.appendChild(g);
