@@ -1,0 +1,28 @@
+<div class="events-table-container">
+  <h2>Events</h2>
+  
+  <div *ngIf="loading" class="loading">Loading events...</div>
+  
+  <div *ngIf="!loading" class="table-wrapper">
+    <table class="events-table">
+      <thead>
+        <tr>
+          <th>Event ID</th>
+          <th>Activity</th>
+          <th>Timestamp</th>
+          <th *ngFor="let type of objectTypes">{{ type }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let event of events">
+          <td>{{ event.id }}</td>
+          <td>{{ event.activity }}</td>
+          <td>{{ event.timestamp }}</td>
+          <td *ngFor="let type of objectTypes">
+            {{ getObjectsDisplay(event.objectsByType[type]) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

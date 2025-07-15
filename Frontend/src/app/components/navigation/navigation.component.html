@@ -1,0 +1,12 @@
+<nav class="navigation-panel">
+  <h2 class="nav-title">OCEL Explorer</h2>
+  <ul class="nav-list">
+    <li *ngFor="let item of menuItems" 
+        class="nav-item"
+        [class.active]="activeItem === item.route"
+        (click)="selectItem(item.route)">
+      <span class="nav-icon">{{ item.icon }}</span>
+      <span class="nav-label">{{ item.label }}</span>
+    </li>
+  </ul>
+</nav>
