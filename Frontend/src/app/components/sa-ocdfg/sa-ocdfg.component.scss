@@ -36,16 +36,32 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  
+  &:hover {
+    opacity: 0.8;
+  }
+  
+  &.inactive {
+    opacity: 0.4;
+    
+    .legend-color {
+      background-color: #ccc !important;
+    }
+  }
   
   .legend-color {
     width: 20px;
     height: 20px;
     border-radius: 50%;
     border: 2px solid #333;
+    transition: background-color 0.2s ease;
   }
   
   span {
     font-size: 0.9rem;
     color: #212529;
+    user-select: none;
   }
 }

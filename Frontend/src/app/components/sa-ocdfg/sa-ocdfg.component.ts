@@ -25,12 +25,19 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
   ];
   objectTypeColors: { [key: string]: string } = {};
+  activeObjectTypes: Set<string> = new Set();
+  private ocelData: OCELData | null = null;
 
   constructor(private ocelDataService: OcelDataService) {}
 
   ngOnInit(): void {
     this.ocelDataService.ocelData$.subscribe(data => {
       if (data) {
+        this.ocelData = data;
+        // Initialize all object types as active
+        data.objectTypes.forEach(type => {
+          this.activeObjectTypes.add(type.name);
+        });
         this.computeDirectlyFollowsGraph(data);
         this.loading = false;
       }
@@ -41,6 +48,23 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     if (!this.loading) {
       this.renderGraph();
     }
+  }
+
+  toggleObjectType(typeName: string): void {
+    if (this.activeObjectTypes.has(typeName)) {
+      this.activeObjectTypes.delete(typeName);
+    } else {
+      this.activeObjectTypes.add(typeName);
+    }
+    
+    // Recompute the graph with updated active types
+    if (this.ocelData) {
+      this.computeDirectlyFollowsGraph(this.ocelData);
+    }
+  }
+
+  isObjectTypeActive(typeName: string): boolean {
+    return this.activeObjectTypes.has(typeName);
   }
 
   private computeDirectlyFollowsGraph(data: OCELData): void {
@@ -68,7 +92,7 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
 
     Object.entries(eventsByObject).forEach(([objectId, events]) => {
       const object = data.objects.find(obj => obj.id === objectId);
-      if (!object) return;
+      if (!object || !this.activeObjectTypes.has(object.type)) return;
 
       // Sort events by timestamp
       events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());

@@ -1,7 +1,10 @@
 <div class="sa-ocdfg-container">
   <div class="legend" *ngIf="!loading">
     <div class="legend-items">
-      <div *ngFor="let type of objectTypeColors | keyvalue" class="legend-item">
+      <div *ngFor="let type of objectTypeColors | keyvalue" 
+           class="legend-item" 
+           [class.inactive]="!isObjectTypeActive(type.key)"
+           (click)="toggleObjectType(type.key)">
         <div class="legend-color" [style.background-color]="type.value"></div>
         <span>{{ type.key }}</span>
       </div>
