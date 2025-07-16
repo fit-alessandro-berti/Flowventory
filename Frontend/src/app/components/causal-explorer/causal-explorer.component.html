@@ -12,7 +12,7 @@
         <label *ngFor="let v of availableObservedVariables" class="var-item">
           <input type="checkbox"
                  [checked]="selectedObservedVariables.includes(v.id)"
-                 (change)="onObservedToggle(v.id, $event.target.checked)">
+                 (change)="onObservedToggle(v.id, ($event.target as HTMLInputElement).checked)">
           {{ v.name }}
         </label>
       </div>
@@ -23,7 +23,7 @@
         <label *ngFor="let v of availableLatentVariables" class="var-item">
           <input type="checkbox"
                  [checked]="selectedLatentVariables.includes(v.id)"
-                 (change)="onLatentToggle(v.id, $event.target.checked)">
+                 (change)="onLatentToggle(v.id, ($event.target as HTMLInputElement).checked)">
           {{ v.name }}
         </label>
       </div>
