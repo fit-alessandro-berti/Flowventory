@@ -1,0 +1,22 @@
+<div class="lifecycle-patterns-container">
+  <div class="controls">
+    <label for="leadObjectType">Lead Object Type:</label>
+    <select id="leadObjectType" [(ngModel)]="leadObjectType" (change)="onLeadObjectTypeChange()">
+      <option *ngFor="let type of objectTypes" [value]="type">{{ type }}</option>
+    </select>
+  </div>
+
+  <div *ngIf="loading" class="loading">Computing patterns...</div>
+
+  <div *ngIf="!loading" class="patterns-list">
+    <div *ngFor="let pattern of patterns" class="pattern-item">
+      <span class="support">{{ pattern.support }}</span>
+      <span class="sequence">
+        <ng-container *ngFor="let act of pattern.sequence; let i = index">
+          <span class="activity-block">{{ act }}</span>
+          <span *ngIf="i < pattern.sequence.length - 1" class="relation">{{ pattern.immediate[i] ? '›' : '…' }}</span>
+        </ng-container>
+      </span>
+    </div>
+  </div>
+</div>
