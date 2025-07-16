@@ -14,7 +14,8 @@ export class NavigationComponent {
   menuItems = [
     { label: 'Events', route: 'events', icon: '📋' },
     { label: 'SA-OCDFG', route: 'sa-ocdfg', icon: '🔀' },
-    { label: 'Causal Explorer', route: 'causal-explorer', icon: '🔍' }
+    { label: 'Causal Explorer', route: 'causal-explorer', icon: '🔍' },
+    { label: 'Lifecycle Patterns', route: 'lifecycle-patterns', icon: '🧩' }
   ];
 
   activeItem = 'events';
