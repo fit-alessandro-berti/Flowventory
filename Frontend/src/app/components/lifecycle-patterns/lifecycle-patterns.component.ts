@@ -25,6 +25,8 @@ export class LifecyclePatternsComponent implements OnInit {
   leadObjectType = 'MAT_PLA';
   patterns: PatternDisplay[] = [];
   loading = true;
+  minPatternLength = 1;
+  maxPatterns = 50;
 
   private ocelData: OCELData | null = null;
 
@@ -45,6 +47,12 @@ export class LifecyclePatternsComponent implements OnInit {
   }
 
   onLeadObjectTypeChange(): void {
+    if (this.ocelData) {
+      this.computePatterns();
+    }
+  }
+
+  onPatternSettingsUpdate(): void {
     if (this.ocelData) {
       this.computePatterns();
     }
@@ -73,8 +81,10 @@ export class LifecyclePatternsComponent implements OnInit {
     const minSupport = Math.max(1, Math.ceil(sequences.length * 0.1));
     const results: PatternResult[] = [];
     this.prefixSpan(sequences, [], minSupport, results);
-    const sorted = results.sort((a, b) => b.support - a.support);
-    this.patterns = sorted.slice(0, 50).map(p => ({
+    const filtered = results.filter(r => r.sequence.length >= Math.max(1, this.minPatternLength));
+    const sorted = filtered.sort((a, b) => b.support - a.support);
+    const limit = Math.max(1, this.maxPatterns);
+    this.patterns = sorted.slice(0, limit).map(p => ({
       ...p,
       immediate: this.getImmediateRelations(p.sequence, sequences)
     }));
