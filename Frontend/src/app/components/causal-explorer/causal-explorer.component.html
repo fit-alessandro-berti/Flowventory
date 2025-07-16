@@ -6,6 +6,29 @@
         <option *ngFor="let type of objectTypes" [value]="type">{{ type }}</option>
       </select>
     </div>
+    <div class="control-group">
+      <label>Observed Variables:</label>
+      <div class="variable-list">
+        <label *ngFor="let v of availableObservedVariables" class="var-item">
+          <input type="checkbox"
+                 [checked]="selectedObservedVariables.includes(v.id)"
+                 (change)="onObservedToggle(v.id, $any($event.target).checked)">
+          {{ v.name }}
+        </label>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>Latent Variables:</label>
+      <div class="variable-list">
+        <label *ngFor="let v of availableLatentVariables" class="var-item">
+          <input type="checkbox"
+                 [checked]="selectedLatentVariables.includes(v.id)"
+                 (change)="onLatentToggle(v.id, $any($event.target).checked)">
+          {{ v.name }}
+        </label>
+      </div>
+    </div>
+    <button class="redraw-btn" (click)="onRedrawClick()">Redraw Graph</button>
   </div>
 
   <div class="legend">

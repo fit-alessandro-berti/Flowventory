@@ -19,6 +19,28 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   loading = true;
   objectTypes: string[] = [];
   leadObjectType = 'MAT_PLA'; // Default lead object type
+
+  /** Lists of available variables so the user can select which ones to display */
+  availableObservedVariables = [
+    { id: 'activity_diversity', name: 'Activity Diversity' },
+    { id: 'activity_count', name: 'Activity Count' },
+    { id: 'object_interactions', name: 'Object Interactions' },
+    { id: 'object_type_diversity', name: 'Object Type Diversity' },
+    { id: 'throughput_time', name: 'Throughput Time' },
+    { id: 'avg_waiting_time', name: 'Avg Waiting Time' },
+    { id: 'rework_ratio', name: 'Rework Ratio' },
+    { id: 'interaction_density', name: 'Interaction Density' },
+    { id: 'waiting_time_std', name: 'Waiting Time Std' }
+  ];
+
+  availableLatentVariables = [
+    { id: 'process_complexity', name: 'Process Complexity' },
+    { id: 'process_variability', name: 'Process Variability' },
+    { id: 'process_performance', name: 'Process Performance' }
+  ];
+
+  selectedObservedVariables = this.availableObservedVariables.map(v => v.id);
+  selectedLatentVariables = this.availableLatentVariables.map(v => v.id);
   
   causalModel: CausalModel = {
     variables: [],
@@ -63,13 +85,40 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     }
   }
 
+
+  onObservedToggle(id: string, checked: boolean): void {
+    if (checked) {
+      if (!this.selectedObservedVariables.includes(id)) {
+        this.selectedObservedVariables.push(id);
+      }
+    } else {
+      this.selectedObservedVariables = this.selectedObservedVariables.filter(v => v !== id);
+    }
+  }
+
+  onLatentToggle(id: string, checked: boolean): void {
+    if (checked) {
+      if (!this.selectedLatentVariables.includes(id)) {
+        this.selectedLatentVariables.push(id);
+      }
+    } else {
+      this.selectedLatentVariables = this.selectedLatentVariables.filter(v => v !== id);
+    }
+  }
+
+  onRedrawClick(): void {
+    if (this.ocelData) {
+      this.computeCausalModel();
+    }
+  }
+
   private computeCausalModel(): void {
     if (!this.ocelData) return;
-    
+
     const variables: CausalVariable[] = [];
     const paths: CausalPath[] = [];
     this.metricsData.clear();
-    
+
     // 1. Define latent variables
     variables.push({
       id: 'process_complexity',
@@ -86,18 +135,33 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       category: 'performance',
       indicators: []
     });
-    
+
+    variables.push({
+      id: 'process_variability',
+      name: 'Process Variability',
+      type: 'latent',
+      category: 'complexity',
+      indicators: []
+    });
+
     // 2. Create observed variables and compute their values
     this.createObservedVariables(variables);
-    
-    // 3. Compute correlation matrix
-    const correlationData = this.computeCorrelationMatrix();
-    
-    // 4. Estimate path coefficients using correlations
-    this.estimatePathCoefficients(variables, paths, correlationData);
-    
+
+    // 3. Filter variables based on user selection
+    const selectedIds = new Set([
+      ...this.selectedObservedVariables,
+      ...this.selectedLatentVariables
+    ]);
+    const filteredVariables = variables.filter(v => selectedIds.has(v.id));
+
+    // 4. Compute correlation matrix only for selected observed variables
+    const correlationData = this.computeCorrelationMatrix(this.selectedObservedVariables);
+
+    // 5. Estimate path coefficients using correlations
+    this.estimatePathCoefficients(filteredVariables, paths, correlationData);
+
     this.causalModel = {
-      variables,
+      variables: filteredVariables,
       paths,
       leadObjectType: this.leadObjectType,
       correlationMatrix: correlationData.matrix,
@@ -119,6 +183,9 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     const activityCount: number[] = [];
     const uniqueObjectTypes: number[] = [];
     const avgWaitingTime: number[] = [];
+    const reworkRatio: number[] = [];
+    const interactionDensity: number[] = [];
+    const waitingTimeStd: number[] = [];
     
     leadObjects.forEach(leadObj => {
       // Get all events for this lead object
@@ -133,7 +200,7 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
         
         // Total activity count
         activityCount.push(objEvents.length);
-        
+
         // Object interactions (total number of unique objects interacted with)
         const interactedObjects = new Set<string>();
         objEvents.forEach(event => {
@@ -144,7 +211,9 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
           });
         });
         objectInteractions.push(interactedObjects.size);
-        
+
+        interactionDensity.push(interactedObjects.size / objEvents.length);
+
         // Unique object types interacted with
         const interactedTypes = new Set<string>();
         interactedObjects.forEach(objId => {
@@ -161,15 +230,27 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
         // Average waiting time between activities
         if (objEvents.length > 1) {
           let totalWaiting = 0;
+          const waits: number[] = [];
           for (let i = 1; i < objEvents.length; i++) {
             const prevTime = new Date(objEvents[i - 1].time).getTime();
             const currTime = new Date(objEvents[i].time).getTime();
             totalWaiting += currTime - prevTime;
+            waits.push(currTime - prevTime);
           }
           avgWaitingTime.push(totalWaiting / (objEvents.length - 1));
+          const meanWait = totalWaiting / (objEvents.length - 1);
+          const variance = waits.reduce((a, b) => a + Math.pow(b - meanWait, 2), 0) / waits.length;
+          waitingTimeStd.push(Math.sqrt(variance));
         } else {
           avgWaitingTime.push(0);
+          waitingTimeStd.push(0);
         }
+
+        // Rework ratio: repeated activities divided by total activities
+        const seenActs = new Map<string, number>();
+        objEvents.forEach(e => seenActs.set(e.type, (seenActs.get(e.type) || 0) + 1));
+        const repeats = Array.from(seenActs.values()).reduce((sum, v) => sum + Math.max(0, v - 1), 0);
+        reworkRatio.push(repeats / objEvents.length);
       }
     });
     
@@ -180,13 +261,21 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     this.addObservedVariable(variables, 'object_type_diversity', 'Object Type Diversity', 'complexity', uniqueObjectTypes);
     this.addObservedVariable(variables, 'throughput_time', 'Throughput Time', 'performance', throughputTime);
     this.addObservedVariable(variables, 'avg_waiting_time', 'Avg Waiting Time', 'performance', avgWaitingTime);
+    this.addObservedVariable(variables, 'rework_ratio', 'Rework Ratio', 'complexity', reworkRatio);
+    this.addObservedVariable(variables, 'interaction_density', 'Interaction Density', 'complexity', interactionDensity);
+    this.addObservedVariable(variables, 'waiting_time_std', 'Waiting Time Std', 'performance', waitingTimeStd);
     
     // Update latent variable indicators
     const complexityVar = variables.find(v => v.id === 'process_complexity');
     if (complexityVar) {
-      complexityVar.indicators = ['activity_diversity', 'activity_count', 'object_interactions', 'object_type_diversity'];
+      complexityVar.indicators = ['activity_diversity', 'activity_count', 'object_interactions', 'object_type_diversity', 'interaction_density'];
     }
-    
+
+    const variabilityVar = variables.find(v => v.id === 'process_variability');
+    if (variabilityVar) {
+      variabilityVar.indicators = ['rework_ratio', 'waiting_time_std'];
+    }
+
     const performanceVar = variables.find(v => v.id === 'process_performance');
     if (performanceVar) {
       performanceVar.indicators = ['throughput_time', 'avg_waiting_time'];
@@ -219,8 +308,8 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     this.metricsData.set(id, standardized);
   }
   
-  private computeCorrelationMatrix(): { matrix: number[][], names: string[] } {
-    const varNames = Array.from(this.metricsData.keys());
+  private computeCorrelationMatrix(selected: string[]): { matrix: number[][], names: string[] } {
+    const varNames = selected.filter(v => this.metricsData.has(v));
     const n = varNames.length;
     const matrix: number[][] = Array(n).fill(0).map(() => Array(n).fill(0));
     
@@ -258,49 +347,88 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     correlationData: { matrix: number[][], names: string[] }
   ): void {
     // Create paths from observed to latent variables (factor loadings)
-    const complexityIndicators = ['activity_diversity', 'activity_count', 'object_interactions', 'object_type_diversity'];
+    const complexityIndicators = ['activity_diversity', 'activity_count', 'object_interactions', 'object_type_diversity', 'interaction_density'];
+    const variabilityIndicators = ['rework_ratio', 'waiting_time_std'];
     const performanceIndicators = ['throughput_time', 'avg_waiting_time'];
-    
-    // Estimate factor loadings using correlations
-    complexityIndicators.forEach(indicator => {
-      const loading = this.estimateFactorLoading(indicator, complexityIndicators, correlationData);
+
+    const selComplexity = complexityIndicators.filter(i => this.selectedObservedVariables.includes(i));
+    const selVariability = variabilityIndicators.filter(i => this.selectedObservedVariables.includes(i));
+    const selPerformance = performanceIndicators.filter(i => this.selectedObservedVariables.includes(i));
+
+    // Estimate factor loadings only when the corresponding latent variable is selected
+    if (this.selectedLatentVariables.includes('process_complexity')) {
+      selComplexity.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selComplexity, correlationData);
+        paths.push({
+          id: `path_complexity_${indicator}`,
+          source: 'process_complexity',
+          target: indicator,
+          coefficient: loading,
+          isSignificant: Math.abs(loading) > 0.3
+        });
+      });
+    }
+
+    if (this.selectedLatentVariables.includes('process_variability')) {
+      selVariability.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selVariability, correlationData);
+        paths.push({
+          id: `path_variability_${indicator}`,
+          source: 'process_variability',
+          target: indicator,
+          coefficient: loading,
+          isSignificant: Math.abs(loading) > 0.3
+        });
+      });
+    }
+
+    if (this.selectedLatentVariables.includes('process_performance')) {
+      selPerformance.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selPerformance, correlationData);
+        // Reverse sign for waiting time (negative impact on performance)
+        const adjustedLoading = indicator === 'avg_waiting_time' ? -Math.abs(loading) : loading;
+        paths.push({
+          id: `path_performance_${indicator}`,
+          source: 'process_performance',
+          target: indicator,
+          coefficient: adjustedLoading,
+          isSignificant: Math.abs(adjustedLoading) > 0.3
+        });
+      });
+    }
+
+    // Structural paths between latent variables
+    if (this.selectedLatentVariables.includes('process_complexity') && this.selectedLatentVariables.includes('process_performance')) {
+      const complexityPerformanceCoef = this.estimateStructuralCoefficient(
+        selComplexity,
+        selPerformance,
+        correlationData
+      );
+
       paths.push({
-        id: `path_complexity_${indicator}`,
+        id: 'path_complexity_performance',
         source: 'process_complexity',
-        target: indicator,
-        coefficient: loading,
-        isSignificant: Math.abs(loading) > 0.3
+        target: 'process_performance',
+        coefficient: complexityPerformanceCoef,
+        isSignificant: Math.abs(complexityPerformanceCoef) > 0.2
       });
-    });
-    
-    performanceIndicators.forEach(indicator => {
-      const loading = this.estimateFactorLoading(indicator, performanceIndicators, correlationData);
-      // Reverse sign for waiting time (negative impact on performance)
-      const adjustedLoading = indicator === 'avg_waiting_time' ? -Math.abs(loading) : loading;
+    }
+
+    if (this.selectedLatentVariables.includes('process_variability') && this.selectedLatentVariables.includes('process_performance')) {
+      const variabilityPerformanceCoef = this.estimateStructuralCoefficient(
+        selVariability,
+        selPerformance,
+        correlationData
+      );
+
       paths.push({
-        id: `path_performance_${indicator}`,
-        source: 'process_performance',
-        target: indicator,
-        coefficient: adjustedLoading,
-        isSignificant: Math.abs(adjustedLoading) > 0.3
+        id: 'path_variability_performance',
+        source: 'process_variability',
+        target: 'process_performance',
+        coefficient: variabilityPerformanceCoef,
+        isSignificant: Math.abs(variabilityPerformanceCoef) > 0.2
       });
-    });
-    
-    // Create structural path from complexity to performance
-    // Hypothesis: Higher complexity leads to lower performance
-    const complexityPerformanceCoef = this.estimateStructuralCoefficient(
-      complexityIndicators,
-      performanceIndicators,
-      correlationData
-    );
-    
-    paths.push({
-      id: 'path_complexity_performance',
-      source: 'process_complexity',
-      target: 'process_performance',
-      coefficient: complexityPerformanceCoef,
-      isSignificant: Math.abs(complexityPerformanceCoef) > 0.2
-    });
+    }
   }
   
   private estimateFactorLoading(
@@ -693,7 +821,10 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       'object_interactions': 'Obj Int',
       'object_type_diversity': 'Obj Div',
       'throughput_time': 'Thr Time',
-      'avg_waiting_time': 'Wait Time'
+      'avg_waiting_time': 'Wait Time',
+      'rework_ratio': 'Rework',
+      'interaction_density': 'Int Den',
+      'waiting_time_std': 'Wait SD'
     };
     return map[label] || label;
   }

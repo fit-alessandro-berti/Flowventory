@@ -12,22 +12,43 @@
   margin-bottom: 1rem;
 }
 
+
 .control-group {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
-  
+  flex-wrap: wrap;
+
   label {
     font-weight: 600;
     color: #495057;
   }
-  
+
   select {
     padding: 0.5rem;
     border: 1px solid #dee2e6;
     border-radius: 0.25rem;
     font-size: 1rem;
     min-width: 200px;
+    min-height: 2.5rem;
+  }
+
+  .variable-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  .var-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+
+    input {
+      margin-right: 0.25rem;
+    }
   }
 }
 
@@ -94,4 +115,19 @@
 
 .graph-svg {
   display: block;
+}
+
+.redraw-btn {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  background-color: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.redraw-btn:hover {
+  background-color: #155a9c;
 }
