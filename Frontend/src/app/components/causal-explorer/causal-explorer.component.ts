@@ -85,7 +85,28 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     }
   }
 
-  onVariableSelectionChange(): void {
+
+  onObservedToggle(id: string, checked: boolean): void {
+    if (checked) {
+      if (!this.selectedObservedVariables.includes(id)) {
+        this.selectedObservedVariables.push(id);
+      }
+    } else {
+      this.selectedObservedVariables = this.selectedObservedVariables.filter(v => v !== id);
+    }
+  }
+
+  onLatentToggle(id: string, checked: boolean): void {
+    if (checked) {
+      if (!this.selectedLatentVariables.includes(id)) {
+        this.selectedLatentVariables.push(id);
+      }
+    } else {
+      this.selectedLatentVariables = this.selectedLatentVariables.filter(v => v !== id);
+    }
+  }
+
+  onRedrawClick(): void {
     if (this.ocelData) {
       this.computeCausalModel();
     }

@@ -7,17 +7,28 @@
       </select>
     </div>
     <div class="control-group">
-      <label for="observedVars">Observed Variables:</label>
-      <select id="observedVars" multiple [(ngModel)]="selectedObservedVariables" (change)="onVariableSelectionChange()">
-        <option *ngFor="let v of availableObservedVariables" [value]="v.id">{{ v.name }}</option>
-      </select>
+      <label>Observed Variables:</label>
+      <div class="variable-list">
+        <label *ngFor="let v of availableObservedVariables" class="var-item">
+          <input type="checkbox"
+                 [checked]="selectedObservedVariables.includes(v.id)"
+                 (change)="onObservedToggle(v.id, $event.target.checked)">
+          {{ v.name }}
+        </label>
+      </div>
     </div>
     <div class="control-group">
-      <label for="latentVars">Latent Variables:</label>
-      <select id="latentVars" multiple [(ngModel)]="selectedLatentVariables" (change)="onVariableSelectionChange()">
-        <option *ngFor="let v of availableLatentVariables" [value]="v.id">{{ v.name }}</option>
-      </select>
+      <label>Latent Variables:</label>
+      <div class="variable-list">
+        <label *ngFor="let v of availableLatentVariables" class="var-item">
+          <input type="checkbox"
+                 [checked]="selectedLatentVariables.includes(v.id)"
+                 (change)="onLatentToggle(v.id, $event.target.checked)">
+          {{ v.name }}
+        </label>
+      </div>
     </div>
+    <button class="redraw-btn" (click)="onRedrawClick()">Redraw Graph</button>
   </div>
 
   <div class="legend">
