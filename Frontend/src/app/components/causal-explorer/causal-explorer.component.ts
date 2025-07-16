@@ -21,22 +21,30 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   leadObjectType = 'MAT_PLA'; // Default lead object type
 
   /** Lists of available variables so the user can select which ones to display */
+  /** Inventory-specific observed metrics */
   availableObservedVariables = [
-    { id: 'activity_diversity', name: 'Activity Diversity' },
-    { id: 'activity_count', name: 'Activity Count' },
-    { id: 'object_interactions', name: 'Object Interactions' },
-    { id: 'object_type_diversity', name: 'Object Type Diversity' },
-    { id: 'throughput_time', name: 'Throughput Time' },
-    { id: 'avg_waiting_time', name: 'Avg Waiting Time' },
-    { id: 'rework_ratio', name: 'Rework Ratio' },
-    { id: 'interaction_density', name: 'Interaction Density' },
-    { id: 'waiting_time_std', name: 'Waiting Time Std' }
+    { id: 'stockout_freq', name: 'Stock-out Frequency' },
+    { id: 'avg_stockout_dur', name: 'Avg Stock-out Duration' },
+    { id: 'overstock_exposure', name: 'Overstock Exposure' },
+    { id: 'stability_ratio', name: 'Stability Ratio' },
+    { id: 'status_switch_rate', name: 'Status-switch Rate' },
+    { id: 'repl_median_gap', name: 'Median Replenishment Interval' },
+    { id: 'repl_mean_size', name: 'Mean Replenishment Size' },
+    { id: 'repl_overshoot_rate', name: 'Replenishment Overshoot Rate' },
+    { id: 'avg_daily_consumption', name: 'Avg Daily Consumption' },
+    { id: 'days_of_supply', name: 'Days of Supply' },
+    { id: 'demand_cv', name: 'Demand CV' },
+    { id: 'demand_acf1', name: 'Lag-1 Autocorr' },
+    { id: 'cons_gap_mean', name: 'Avg Inter-consumption Gap' },
+    { id: 'cons_gap_cv', name: 'Gap CV' },
+    { id: 'demand_entropy', name: 'Demand Entropy' }
   ];
 
+  /** Latent variables for inventory analysis */
   availableLatentVariables = [
-    { id: 'process_complexity', name: 'Process Complexity' },
-    { id: 'process_variability', name: 'Process Variability' },
-    { id: 'process_performance', name: 'Process Performance' }
+    { id: 'stock_health', name: 'Stock Health' },
+    { id: 'repl_efficiency', name: 'Replenishment Efficiency' },
+    { id: 'demand_predictability', name: 'Demand Predictability' }
   ];
 
   selectedObservedVariables = this.availableObservedVariables.map(v => v.id);
@@ -121,24 +129,24 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
 
     // 1. Define latent variables
     variables.push({
-      id: 'process_complexity',
-      name: 'Process Complexity',
-      type: 'latent',
-      category: 'complexity',
-      indicators: []
-    });
-    
-    variables.push({
-      id: 'process_performance',
-      name: 'Process Performance',
+      id: 'stock_health',
+      name: 'Stock Health',
       type: 'latent',
       category: 'performance',
       indicators: []
     });
 
     variables.push({
-      id: 'process_variability',
-      name: 'Process Variability',
+      id: 'repl_efficiency',
+      name: 'Replenishment Efficiency',
+      type: 'latent',
+      category: 'performance',
+      indicators: []
+    });
+
+    variables.push({
+      id: 'demand_predictability',
+      name: 'Demand Predictability',
       type: 'latent',
       category: 'complexity',
       indicators: []
@@ -173,113 +181,187 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   }
 
   private createObservedVariables(variables: CausalVariable[]): void {
-    // Get lead objects for case-level analysis
-    const leadObjects = this.ocelData!.objects.filter(obj => obj.type === this.leadObjectType);
-    
-    // For each lead object, compute metrics
-    const activityDiversity: number[] = [];
-    const objectInteractions: number[] = [];
-    const throughputTime: number[] = [];
-    const activityCount: number[] = [];
-    const uniqueObjectTypes: number[] = [];
-    const avgWaitingTime: number[] = [];
-    const reworkRatio: number[] = [];
-    const interactionDensity: number[] = [];
-    const waitingTimeStd: number[] = [];
-    
-    leadObjects.forEach(leadObj => {
-      // Get all events for this lead object
+    const msDay = 24 * 60 * 60 * 1000;
+    const leadObjects = this.ocelData!.objects.filter(o => o.type === this.leadObjectType);
+    const typeById = new Map<string, string>();
+    this.ocelData!.objects.forEach(o => typeById.set(o.id, o.type));
+
+    const stockoutFreq: number[] = [];
+    const avgStockoutDur: number[] = [];
+    const overstockExposure: number[] = [];
+    const stabilityRatio: number[] = [];
+    const statusSwitchRate: number[] = [];
+    const replMedianGap: number[] = [];
+    const replMeanSize: number[] = [];
+    const replOvershootRate: number[] = [];
+    const avgDailyCons: number[] = [];
+    const daysOfSupply: number[] = [];
+    const demandCv: number[] = [];
+    const demandAcf1: number[] = [];
+    const consGapMean: number[] = [];
+    const consGapCv: number[] = [];
+    const demandEntropy: number[] = [];
+
+    leadObjects.forEach(obj => {
       const objEvents = this.ocelData!.events
-        .filter(e => e.relationships.some(r => r.objectId === leadObj.id))
+        .filter(e => e.relationships.some(r => r.objectId === obj.id))
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-      
-      if (objEvents.length > 0) {
-        // Activity diversity (number of unique activities)
-        const uniqueActivities = new Set(objEvents.map(e => e.type));
-        activityDiversity.push(uniqueActivities.size);
-        
-        // Total activity count
-        activityCount.push(objEvents.length);
 
-        // Object interactions (total number of unique objects interacted with)
-        const interactedObjects = new Set<string>();
-        objEvents.forEach(event => {
-          event.relationships.forEach(rel => {
-            if (rel.objectId !== leadObj.id) {
-              interactedObjects.add(rel.objectId);
-            }
-          });
-        });
-        objectInteractions.push(interactedObjects.size);
+      if (objEvents.length < 2) {
+        stockoutFreq.push(0);
+        avgStockoutDur.push(0);
+        overstockExposure.push(0);
+        stabilityRatio.push(0);
+        statusSwitchRate.push(0);
+        replMedianGap.push(0);
+        replMeanSize.push(0);
+        replOvershootRate.push(0);
+        avgDailyCons.push(0);
+        daysOfSupply.push(0);
+        demandCv.push(0);
+        demandAcf1.push(0);
+        consGapMean.push(0);
+        consGapCv.push(0);
+        demandEntropy.push(0);
+        return;
+      }
 
-        interactionDensity.push(interactedObjects.size / objEvents.length);
+      const times = objEvents.map(e => new Date(e.time).getTime());
+      const statuses = objEvents.map(e => String(e.attributes.find(a => a.name === 'Current Status')?.value || ''));
+      const stocks = objEvents.map(e => parseFloat(String(e.attributes.find(a => a.name === 'Stock After')?.value || '0')));
 
-        // Unique object types interacted with
-        const interactedTypes = new Set<string>();
-        interactedObjects.forEach(objId => {
-          const obj = this.ocelData!.objects.find(o => o.id === objId);
-          if (obj) interactedTypes.add(obj.type);
-        });
-        uniqueObjectTypes.push(interactedTypes.size);
-        
-        // Throughput time (first to last event)
-        const firstTime = new Date(objEvents[0].time).getTime();
-        const lastTime = new Date(objEvents[objEvents.length - 1].time).getTime();
-        throughputTime.push(lastTime - firstTime);
-        
-        // Average waiting time between activities
-        if (objEvents.length > 1) {
-          let totalWaiting = 0;
-          const waits: number[] = [];
-          for (let i = 1; i < objEvents.length; i++) {
-            const prevTime = new Date(objEvents[i - 1].time).getTime();
-            const currTime = new Date(objEvents[i].time).getTime();
-            totalWaiting += currTime - prevTime;
-            waits.push(currTime - prevTime);
+      let overstockTime = 0;
+      let normalTime = 0;
+      let statusSwitches = 0;
+      let stockoutEntries = 0;
+      const stockoutDurations: number[] = [];
+      let startUnder: number | null = null;
+
+      const replIntervals: number[] = [];
+      const replSizes: number[] = [];
+      let replOvershoot = 0;
+      let replCount = 0;
+
+      const dailyCons = new Map<string, number>();
+      const consTimes: number[] = [];
+
+      for (let i = 1; i < objEvents.length; i++) {
+        const dt = times[i] - times[i - 1];
+        // time spent in previous status
+        if (statuses[i - 1] === 'Overstock') overstockTime += dt;
+        if (statuses[i - 1] === 'Normal') normalTime += dt;
+
+        if (statuses[i] !== statuses[i - 1]) {
+          statusSwitches++;
+          if (statuses[i] === 'Understock') {
+            stockoutEntries++;
+            startUnder = times[i];
+          } else if (statuses[i - 1] === 'Understock' && startUnder !== null) {
+            stockoutDurations.push(times[i] - startUnder);
+            startUnder = null;
           }
-          avgWaitingTime.push(totalWaiting / (objEvents.length - 1));
-          const meanWait = totalWaiting / (objEvents.length - 1);
-          const variance = waits.reduce((a, b) => a + Math.pow(b - meanWait, 2), 0) / waits.length;
-          waitingTimeStd.push(Math.sqrt(variance));
-        } else {
-          avgWaitingTime.push(0);
-          waitingTimeStd.push(0);
         }
 
-        // Rework ratio: repeated activities divided by total activities
-        const seenActs = new Map<string, number>();
-        objEvents.forEach(e => seenActs.set(e.type, (seenActs.get(e.type) || 0) + 1));
-        const repeats = Array.from(seenActs.values()).reduce((sum, v) => sum + Math.max(0, v - 1), 0);
-        reworkRatio.push(repeats / objEvents.length);
+        const deltaStock = stocks[i] - stocks[i - 1];
+        const isRepl = deltaStock > 0 && objEvents[i].relationships.some(r => typeById.get(r.objectId) === 'PO_ITEM');
+        if (isRepl) {
+          replIntervals.push(dt / msDay);
+          replSizes.push(deltaStock);
+          replCount++;
+          if (statuses[i] === 'Overstock') replOvershoot++;
+        } else if (deltaStock < 0) {
+          const dayKey = new Date(times[i]).toISOString().slice(0, 10);
+          dailyCons.set(dayKey, (dailyCons.get(dayKey) || 0) + -deltaStock);
+          consTimes.push(times[i]);
+        }
       }
+
+      if (statuses[statuses.length - 1] === 'Understock' && startUnder !== null) {
+        stockoutDurations.push(times[times.length - 1] - startUnder);
+      }
+
+      const totalTime = times[times.length - 1] - times[0];
+      const totalDays = Math.max(totalTime / msDay, 1);
+
+      stockoutFreq.push(stockoutEntries / totalDays);
+      const avgDur = stockoutDurations.length ? stockoutDurations.reduce((a, b) => a + b, 0) / stockoutDurations.length : 0;
+      avgStockoutDur.push(avgDur);
+      overstockExposure.push(totalTime ? overstockTime / totalTime : 0);
+      stabilityRatio.push(totalTime ? normalTime / totalTime : 0);
+      statusSwitchRate.push(statusSwitches / totalDays);
+
+      const medGap = replIntervals.length ? replIntervals.sort((a, b) => a - b)[Math.floor(replIntervals.length / 2)] : 0;
+      const meanSize = replSizes.length ? replSizes.reduce((a, b) => a + b, 0) / replSizes.length : 0;
+      const overshootRate = replCount ? replOvershoot / replCount : 0;
+      replMedianGap.push(medGap);
+      replMeanSize.push(meanSize);
+      replOvershootRate.push(overshootRate);
+
+      const consValues = Array.from(dailyCons.values());
+      const avgCons = consValues.length ? consValues.reduce((a, b) => a + b, 0) / consValues.length : 0;
+      avgDailyCons.push(avgCons);
+      const dosValues = stocks.map(s => avgCons ? s / avgCons : 0);
+      daysOfSupply.push(dosValues.reduce((a, b) => a + b, 0) / dosValues.length);
+
+      const meanCons = avgCons;
+      const stdCons = consValues.length ? Math.sqrt(consValues.reduce((a, b) => a + Math.pow(b - meanCons, 2), 0) / consValues.length) : 0;
+      demandCv.push(meanCons ? stdCons / meanCons : 0);
+      if (consValues.length > 1) {
+        const x = consValues.slice(0, -1);
+        const y = consValues.slice(1);
+        let sum = 0;
+        for (let i = 0; i < x.length; i++) sum += ((x[i] - meanCons) / (stdCons || 1)) * ((y[i] - meanCons) / (stdCons || 1));
+        demandAcf1.push(sum / x.length);
+      } else {
+        demandAcf1.push(0);
+      }
+
+      if (consTimes.length > 1) {
+        const gaps = [] as number[];
+        for (let i = 1; i < consTimes.length; i++) gaps.push((consTimes[i] - consTimes[i - 1]) / msDay);
+        const meanGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+        const stdGap = Math.sqrt(gaps.reduce((a, b) => a + Math.pow(b - meanGap, 2), 0) / gaps.length);
+        consGapMean.push(meanGap);
+        consGapCv.push(meanGap ? stdGap / meanGap : 0);
+      } else {
+        consGapMean.push(0);
+        consGapCv.push(0);
+      }
+
+      const freq = new Map<number, number>();
+      consValues.forEach(v => freq.set(v, (freq.get(v) || 0) + 1));
+      let entropy = 0;
+      freq.forEach(c => {
+        const p = c / consValues.length;
+        entropy -= p * Math.log2(p);
+      });
+      demandEntropy.push(entropy);
     });
-    
-    // Create observed variables with computed statistics
-    this.addObservedVariable(variables, 'activity_diversity', 'Activity Diversity', 'complexity', activityDiversity);
-    this.addObservedVariable(variables, 'activity_count', 'Activity Count', 'complexity', activityCount);
-    this.addObservedVariable(variables, 'object_interactions', 'Object Interactions', 'complexity', objectInteractions);
-    this.addObservedVariable(variables, 'object_type_diversity', 'Object Type Diversity', 'complexity', uniqueObjectTypes);
-    this.addObservedVariable(variables, 'throughput_time', 'Throughput Time', 'performance', throughputTime);
-    this.addObservedVariable(variables, 'avg_waiting_time', 'Avg Waiting Time', 'performance', avgWaitingTime);
-    this.addObservedVariable(variables, 'rework_ratio', 'Rework Ratio', 'complexity', reworkRatio);
-    this.addObservedVariable(variables, 'interaction_density', 'Interaction Density', 'complexity', interactionDensity);
-    this.addObservedVariable(variables, 'waiting_time_std', 'Waiting Time Std', 'performance', waitingTimeStd);
-    
-    // Update latent variable indicators
-    const complexityVar = variables.find(v => v.id === 'process_complexity');
-    if (complexityVar) {
-      complexityVar.indicators = ['activity_diversity', 'activity_count', 'object_interactions', 'object_type_diversity', 'interaction_density'];
-    }
 
-    const variabilityVar = variables.find(v => v.id === 'process_variability');
-    if (variabilityVar) {
-      variabilityVar.indicators = ['rework_ratio', 'waiting_time_std'];
-    }
+    // Create observed variables
+    this.addObservedVariable(variables, 'stockout_freq', 'Stock-out Frequency', 'performance', stockoutFreq);
+    this.addObservedVariable(variables, 'avg_stockout_dur', 'Avg Stock-out Duration', 'performance', avgStockoutDur);
+    this.addObservedVariable(variables, 'overstock_exposure', 'Overstock Exposure', 'performance', overstockExposure);
+    this.addObservedVariable(variables, 'stability_ratio', 'Stability Ratio', 'performance', stabilityRatio);
+    this.addObservedVariable(variables, 'status_switch_rate', 'Status-switch Rate', 'performance', statusSwitchRate);
+    this.addObservedVariable(variables, 'repl_median_gap', 'Median Replenishment Interval', 'complexity', replMedianGap);
+    this.addObservedVariable(variables, 'repl_mean_size', 'Mean Replenishment Size', 'complexity', replMeanSize);
+    this.addObservedVariable(variables, 'repl_overshoot_rate', 'Replenishment Overshoot Rate', 'complexity', replOvershootRate);
+    this.addObservedVariable(variables, 'avg_daily_consumption', 'Avg Daily Consumption', 'complexity', avgDailyCons);
+    this.addObservedVariable(variables, 'days_of_supply', 'Days of Supply', 'complexity', daysOfSupply);
+    this.addObservedVariable(variables, 'demand_cv', 'Demand CV', 'complexity', demandCv);
+    this.addObservedVariable(variables, 'demand_acf1', 'Lag-1 Autocorr', 'complexity', demandAcf1);
+    this.addObservedVariable(variables, 'cons_gap_mean', 'Avg Inter-consumption Gap', 'complexity', consGapMean);
+    this.addObservedVariable(variables, 'cons_gap_cv', 'Gap CV', 'complexity', consGapCv);
+    this.addObservedVariable(variables, 'demand_entropy', 'Demand Entropy', 'complexity', demandEntropy);
 
-    const performanceVar = variables.find(v => v.id === 'process_performance');
-    if (performanceVar) {
-      performanceVar.indicators = ['throughput_time', 'avg_waiting_time'];
-    }
+    // Latent variable indicators
+    const sh = variables.find(v => v.id === 'stock_health');
+    if (sh) sh.indicators = ['stockout_freq', 'avg_stockout_dur', 'overstock_exposure', 'stability_ratio', 'status_switch_rate'];
+    const re = variables.find(v => v.id === 'repl_efficiency');
+    if (re) re.indicators = ['repl_median_gap', 'repl_mean_size', 'repl_overshoot_rate', 'avg_daily_consumption', 'days_of_supply'];
+    const dp = variables.find(v => v.id === 'demand_predictability');
+    if (dp) dp.indicators = ['demand_cv', 'demand_acf1', 'cons_gap_mean', 'cons_gap_cv', 'demand_entropy'];
   }
   
   private addObservedVariable(
@@ -346,22 +428,21 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     paths: CausalPath[],
     correlationData: { matrix: number[][], names: string[] }
   ): void {
-    // Create paths from observed to latent variables (factor loadings)
-    const complexityIndicators = ['activity_diversity', 'activity_count', 'object_interactions', 'object_type_diversity', 'interaction_density'];
-    const variabilityIndicators = ['rework_ratio', 'waiting_time_std'];
-    const performanceIndicators = ['throughput_time', 'avg_waiting_time'];
+    // Factor loading indicator groups
+    const shIndicators = ['stockout_freq', 'avg_stockout_dur', 'overstock_exposure', 'stability_ratio', 'status_switch_rate'];
+    const reIndicators = ['repl_median_gap', 'repl_mean_size', 'repl_overshoot_rate', 'avg_daily_consumption', 'days_of_supply'];
+    const dpIndicators = ['demand_cv', 'demand_acf1', 'cons_gap_mean', 'cons_gap_cv', 'demand_entropy'];
 
-    const selComplexity = complexityIndicators.filter(i => this.selectedObservedVariables.includes(i));
-    const selVariability = variabilityIndicators.filter(i => this.selectedObservedVariables.includes(i));
-    const selPerformance = performanceIndicators.filter(i => this.selectedObservedVariables.includes(i));
+    const selSH = shIndicators.filter(i => this.selectedObservedVariables.includes(i));
+    const selRE = reIndicators.filter(i => this.selectedObservedVariables.includes(i));
+    const selDP = dpIndicators.filter(i => this.selectedObservedVariables.includes(i));
 
-    // Estimate factor loadings only when the corresponding latent variable is selected
-    if (this.selectedLatentVariables.includes('process_complexity')) {
-      selComplexity.forEach(indicator => {
-        const loading = this.estimateFactorLoading(indicator, selComplexity, correlationData);
+    if (this.selectedLatentVariables.includes('stock_health')) {
+      selSH.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selSH, correlationData);
         paths.push({
-          id: `path_complexity_${indicator}`,
-          source: 'process_complexity',
+          id: `path_sh_${indicator}`,
+          source: 'stock_health',
           target: indicator,
           coefficient: loading,
           isSignificant: Math.abs(loading) > 0.3
@@ -369,12 +450,12 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       });
     }
 
-    if (this.selectedLatentVariables.includes('process_variability')) {
-      selVariability.forEach(indicator => {
-        const loading = this.estimateFactorLoading(indicator, selVariability, correlationData);
+    if (this.selectedLatentVariables.includes('repl_efficiency')) {
+      selRE.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selRE, correlationData);
         paths.push({
-          id: `path_variability_${indicator}`,
-          source: 'process_variability',
+          id: `path_re_${indicator}`,
+          source: 'repl_efficiency',
           target: indicator,
           coefficient: loading,
           isSignificant: Math.abs(loading) > 0.3
@@ -382,51 +463,50 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       });
     }
 
-    if (this.selectedLatentVariables.includes('process_performance')) {
-      selPerformance.forEach(indicator => {
-        const loading = this.estimateFactorLoading(indicator, selPerformance, correlationData);
-        // Reverse sign for waiting time (negative impact on performance)
-        const adjustedLoading = indicator === 'avg_waiting_time' ? -Math.abs(loading) : loading;
+    if (this.selectedLatentVariables.includes('demand_predictability')) {
+      selDP.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selDP, correlationData);
         paths.push({
-          id: `path_performance_${indicator}`,
-          source: 'process_performance',
+          id: `path_dp_${indicator}`,
+          source: 'demand_predictability',
           target: indicator,
-          coefficient: adjustedLoading,
-          isSignificant: Math.abs(adjustedLoading) > 0.3
+          coefficient: loading,
+          isSignificant: Math.abs(loading) > 0.3
         });
       });
     }
 
-    // Structural paths between latent variables
-    if (this.selectedLatentVariables.includes('process_complexity') && this.selectedLatentVariables.includes('process_performance')) {
-      const complexityPerformanceCoef = this.estimateStructuralCoefficient(
-        selComplexity,
-        selPerformance,
-        correlationData
-      );
-
+    // Structural paths
+    if (this.selectedLatentVariables.includes('demand_predictability') && this.selectedLatentVariables.includes('repl_efficiency')) {
+      const coef = this.estimateStructuralCoefficient(selDP, selRE, correlationData);
       paths.push({
-        id: 'path_complexity_performance',
-        source: 'process_complexity',
-        target: 'process_performance',
-        coefficient: complexityPerformanceCoef,
-        isSignificant: Math.abs(complexityPerformanceCoef) > 0.2
+        id: 'path_dp_re',
+        source: 'demand_predictability',
+        target: 'repl_efficiency',
+        coefficient: coef,
+        isSignificant: Math.abs(coef) > 0.2
       });
     }
 
-    if (this.selectedLatentVariables.includes('process_variability') && this.selectedLatentVariables.includes('process_performance')) {
-      const variabilityPerformanceCoef = this.estimateStructuralCoefficient(
-        selVariability,
-        selPerformance,
-        correlationData
-      );
-
+    if (this.selectedLatentVariables.includes('repl_efficiency') && this.selectedLatentVariables.includes('stock_health')) {
+      const coef = this.estimateStructuralCoefficient(selRE, selSH, correlationData);
       paths.push({
-        id: 'path_variability_performance',
-        source: 'process_variability',
-        target: 'process_performance',
-        coefficient: variabilityPerformanceCoef,
-        isSignificant: Math.abs(variabilityPerformanceCoef) > 0.2
+        id: 'path_re_sh',
+        source: 'repl_efficiency',
+        target: 'stock_health',
+        coefficient: coef,
+        isSignificant: Math.abs(coef) > 0.2
+      });
+    }
+
+    if (this.selectedLatentVariables.includes('demand_predictability') && this.selectedLatentVariables.includes('stock_health')) {
+      const coef = this.estimateStructuralCoefficient(selDP, selSH, correlationData);
+      paths.push({
+        id: 'path_dp_sh',
+        source: 'demand_predictability',
+        target: 'stock_health',
+        coefficient: coef,
+        isSignificant: Math.abs(coef) > 0.2
       });
     }
   }
@@ -468,14 +548,11 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     predictorIndicators.forEach(pred => {
       const predIdx = correlationData.names.indexOf(pred);
       if (predIdx === -1) return;
-      
+
       outcomeIndicators.forEach(outcome => {
         const outIdx = correlationData.names.indexOf(outcome);
         if (outIdx !== -1) {
-          // Adjust sign based on expected relationship
-          const corr = correlationData.matrix[predIdx][outIdx];
-          const adjustedCorr = outcome === 'avg_waiting_time' ? -corr : -corr;
-          sum += adjustedCorr;
+          sum += correlationData.matrix[predIdx][outIdx];
           count++;
         }
       });
@@ -816,15 +893,21 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   
   private truncateLabel(label: string): string {
     const map: Record<string, string> = {
-      'activity_diversity': 'Act Div',
-      'activity_count': 'Act Cnt',
-      'object_interactions': 'Obj Int',
-      'object_type_diversity': 'Obj Div',
-      'throughput_time': 'Thr Time',
-      'avg_waiting_time': 'Wait Time',
-      'rework_ratio': 'Rework',
-      'interaction_density': 'Int Den',
-      'waiting_time_std': 'Wait SD'
+      'stockout_freq': 'SO Freq',
+      'avg_stockout_dur': 'SO Dur',
+      'overstock_exposure': 'OS Exp',
+      'stability_ratio': 'Stab',
+      'status_switch_rate': 'Sw Rate',
+      'repl_median_gap': 'Repl Gap',
+      'repl_mean_size': 'Repl Size',
+      'repl_overshoot_rate': 'OS Rate',
+      'avg_daily_consumption': 'Avg Cons',
+      'days_of_supply': 'DoS',
+      'demand_cv': 'Dem CV',
+      'demand_acf1': 'ACF1',
+      'cons_gap_mean': 'Gap µ',
+      'cons_gap_cv': 'Gap CV',
+      'demand_entropy': 'Entropy'
     };
     return map[label] || label;
   }
