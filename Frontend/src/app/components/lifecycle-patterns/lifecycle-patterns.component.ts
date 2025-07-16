@@ -2,11 +2,15 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OcelDataService } from '../../services/ocel-data.service';
-import { OCELData, OCELEvent } from '../../models/ocel.model';
+import { OCELData } from '../../models/ocel.model';
 
 interface PatternResult {
   sequence: string[];
   support: number;
+}
+
+interface PatternDisplay extends PatternResult {
+  immediate: boolean[];
 }
 
 @Component({
@@ -19,7 +23,7 @@ interface PatternResult {
 export class LifecyclePatternsComponent implements OnInit {
   objectTypes: string[] = [];
   leadObjectType = 'MAT_PLA';
-  patterns: PatternResult[] = [];
+  patterns: PatternDisplay[] = [];
   loading = true;
 
   private ocelData: OCELData | null = null;
@@ -49,7 +53,6 @@ export class LifecyclePatternsComponent implements OnInit {
   private computePatterns(): void {
     if (!this.ocelData) return;
 
-    // Build sequences of activities per lead object
     const sequences: string[][] = [];
     const leadObjects = this.ocelData.objects.filter(o => o.type === this.leadObjectType);
 
@@ -67,10 +70,38 @@ export class LifecyclePatternsComponent implements OnInit {
       return;
     }
 
-    const minSupport = Math.max(2, Math.ceil(sequences.length * 0.2));
+    const minSupport = Math.max(1, Math.ceil(sequences.length * 0.1));
     const results: PatternResult[] = [];
     this.prefixSpan(sequences, [], minSupport, results);
-    this.patterns = results.sort((a, b) => b.support - a.support);
+    const sorted = results.sort((a, b) => b.support - a.support);
+    this.patterns = sorted.slice(0, 50).map(p => ({
+      ...p,
+      immediate: this.getImmediateRelations(p.sequence, sequences)
+    }));
+  }
+
+  private getImmediateRelations(pattern: string[], sequences: string[][]): boolean[] {
+    const relations: boolean[] = [];
+    for (let i = 0; i < pattern.length - 1; i++) {
+      const a = pattern[i];
+      const b = pattern[i + 1];
+      let immediate = false;
+      outer: for (const seq of sequences) {
+        for (let idx = 0; idx < seq.length - 1; idx++) {
+          if (seq[idx] === a) {
+            const nextIdx = seq.indexOf(b, idx + 1);
+            if (nextIdx !== -1) {
+              if (nextIdx === idx + 1) {
+                immediate = true;
+              }
+              break outer;
+            }
+          }
+        }
+      }
+      relations.push(immediate);
+    }
+    return relations;
   }
 
   private prefixSpan(db: string[][], prefix: string[], minSup: number, results: PatternResult[]): void {

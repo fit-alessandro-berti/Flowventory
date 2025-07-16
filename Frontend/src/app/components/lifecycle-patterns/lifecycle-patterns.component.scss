@@ -54,10 +54,19 @@
   .sequence {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.25rem;
 
-    .chevron {
+    .activity-block {
+      padding: 0.25rem 0.5rem;
+      background-color: #e3f2fd;
+      border-radius: 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    .relation {
       margin: 0 0.25rem;
+      font-weight: bold;
     }
   }
 }
