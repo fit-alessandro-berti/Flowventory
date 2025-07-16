@@ -355,41 +355,47 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     const selVariability = variabilityIndicators.filter(i => this.selectedObservedVariables.includes(i));
     const selPerformance = performanceIndicators.filter(i => this.selectedObservedVariables.includes(i));
 
-    // Estimate factor loadings using correlations
-    selComplexity.forEach(indicator => {
-      const loading = this.estimateFactorLoading(indicator, selComplexity, correlationData);
-      paths.push({
-        id: `path_complexity_${indicator}`,
-        source: 'process_complexity',
-        target: indicator,
-        coefficient: loading,
-        isSignificant: Math.abs(loading) > 0.3
+    // Estimate factor loadings only when the corresponding latent variable is selected
+    if (this.selectedLatentVariables.includes('process_complexity')) {
+      selComplexity.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selComplexity, correlationData);
+        paths.push({
+          id: `path_complexity_${indicator}`,
+          source: 'process_complexity',
+          target: indicator,
+          coefficient: loading,
+          isSignificant: Math.abs(loading) > 0.3
+        });
       });
-    });
+    }
 
-    selVariability.forEach(indicator => {
-      const loading = this.estimateFactorLoading(indicator, selVariability, correlationData);
-      paths.push({
-        id: `path_variability_${indicator}`,
-        source: 'process_variability',
-        target: indicator,
-        coefficient: loading,
-        isSignificant: Math.abs(loading) > 0.3
+    if (this.selectedLatentVariables.includes('process_variability')) {
+      selVariability.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selVariability, correlationData);
+        paths.push({
+          id: `path_variability_${indicator}`,
+          source: 'process_variability',
+          target: indicator,
+          coefficient: loading,
+          isSignificant: Math.abs(loading) > 0.3
+        });
       });
-    });
+    }
 
-    selPerformance.forEach(indicator => {
-      const loading = this.estimateFactorLoading(indicator, selPerformance, correlationData);
-      // Reverse sign for waiting time (negative impact on performance)
-      const adjustedLoading = indicator === 'avg_waiting_time' ? -Math.abs(loading) : loading;
-      paths.push({
-        id: `path_performance_${indicator}`,
-        source: 'process_performance',
-        target: indicator,
-        coefficient: adjustedLoading,
-        isSignificant: Math.abs(adjustedLoading) > 0.3
+    if (this.selectedLatentVariables.includes('process_performance')) {
+      selPerformance.forEach(indicator => {
+        const loading = this.estimateFactorLoading(indicator, selPerformance, correlationData);
+        // Reverse sign for waiting time (negative impact on performance)
+        const adjustedLoading = indicator === 'avg_waiting_time' ? -Math.abs(loading) : loading;
+        paths.push({
+          id: `path_performance_${indicator}`,
+          source: 'process_performance',
+          target: indicator,
+          coefficient: adjustedLoading,
+          isSignificant: Math.abs(adjustedLoading) > 0.3
+        });
       });
-    });
+    }
 
     // Structural paths between latent variables
     if (this.selectedLatentVariables.includes('process_complexity') && this.selectedLatentVariables.includes('process_performance')) {
