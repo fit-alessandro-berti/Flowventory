@@ -20,6 +20,7 @@ export class GraphPatternsComponent implements OnInit {
   readonly leadObjectType = 'MAT_PLA';
   minPatternLength = 1;
   maxPatterns = 50;
+  minSupportPercent = 10;
   showProblematicOnly = false;
   patterns: GraphPattern[] = [];
   loading = true;
@@ -97,7 +98,10 @@ export class GraphPatternsComponent implements OnInit {
       transactions.push(Array.from(new Set(edges)));
     });
 
-    const minSupport = Math.max(1, Math.ceil(transactions.length * 0.1));
+    const minSupport = Math.max(
+      1,
+      Math.ceil(transactions.length * (this.minSupportPercent / 100))
+    );
     const mined = this.apriori(transactions, minSupport);
     let filtered = mined.filter(p => p.edges.length >= Math.max(1, this.minPatternLength));
     if (this.showProblematicOnly) {
