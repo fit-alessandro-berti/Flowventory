@@ -4,6 +4,48 @@
   overflow: auto;
 }
 
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  label {
+    font-weight: 600;
+    color: #495057;
+  }
+
+  select {
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    min-width: 200px;
+  }
+
+  input {
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    width: 80px;
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background-color: #1976d2;
+    color: #fff;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #155a9c;
+  }
+}
+
 .loading {
   text-align: center;
   padding: 2rem;

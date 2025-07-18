@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { OcelDataService } from '../../services/ocel-data.service';
 import { OCELData, OCELEvent, OCELObject } from '../../models/ocel.model';
 
@@ -11,11 +12,15 @@ interface GraphPattern {
 @Component({
   selector: 'app-graph-patterns',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './graph-patterns.component.html',
   styleUrl: './graph-patterns.component.scss'
 })
 export class GraphPatternsComponent implements OnInit {
+  objectTypes: string[] = [];
+  leadObjectType = 'MAT_PLA';
+  minPatternLength = 1;
+  maxPatterns = 50;
   patterns: GraphPattern[] = [];
   loading = true;
 
@@ -27,16 +32,32 @@ export class GraphPatternsComponent implements OnInit {
     this.ocelDataService.ocelData$.subscribe(data => {
       if (data) {
         this.ocelData = data;
+        this.objectTypes = data.objectTypes.map(t => t.name);
+        if (!this.objectTypes.includes('MAT_PLA') && this.objectTypes.length > 0) {
+          this.leadObjectType = this.objectTypes[0];
+        }
         this.computeGraphPatterns();
         this.loading = false;
       }
     });
   }
 
+  onLeadObjectTypeChange(): void {
+    if (this.ocelData) {
+      this.computeGraphPatterns();
+    }
+  }
+
+  onPatternSettingsUpdate(): void {
+    if (this.ocelData) {
+      this.computeGraphPatterns();
+    }
+  }
+
   private computeGraphPatterns(): void {
     if (!this.ocelData) return;
 
-    const leadObjects = this.ocelData.objects.filter(o => o.type === 'MAT_PLA');
+    const leadObjects = this.ocelData.objects.filter(o => o.type === this.leadObjectType);
     const transactions: string[][] = [];
 
     leadObjects.forEach(mat => {
@@ -52,7 +73,7 @@ export class GraphPatternsComponent implements OnInit {
         ev.relationships.forEach(rel => {
           const obj = this.ocelData!.objects.find(o => o.id === rel.objectId);
           if (!obj) return;
-          if (obj.type === 'MAT_PLA') return; // skip main object
+          if (obj.type === this.leadObjectType) return; // skip main object
           if (obj.type === 'PO_ITEM' || obj.type === 'SO_ITEM' || obj.type === 'SUPPLIER') {
             if (!objectLabels.has(obj.id)) {
               const count = (objectCounters[obj.type] || 0) + 1;
@@ -86,7 +107,11 @@ export class GraphPatternsComponent implements OnInit {
     });
 
     const minSupport = Math.max(1, Math.ceil(transactions.length * 0.1));
-    this.patterns = this.apriori(transactions, minSupport).sort((a, b) => b.support - a.support).slice(0, 50);
+    const mined = this.apriori(transactions, minSupport);
+    const filtered = mined.filter(p => p.edges.length >= Math.max(1, this.minPatternLength));
+    const sorted = filtered.sort((a, b) => b.support - a.support);
+    const limit = Math.max(1, this.maxPatterns);
+    this.patterns = sorted.slice(0, limit);
   }
 
   private apriori(transactions: string[][], minSup: number): GraphPattern[] {
