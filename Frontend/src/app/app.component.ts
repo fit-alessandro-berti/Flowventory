@@ -6,6 +6,7 @@ import { EventsTableComponent } from './components/events-table/events-table.com
 import { SaOcdfgComponent } from './components/sa-ocdfg/sa-ocdfg.component';
 import { CausalExplorerComponent } from './components/causal-explorer/causal-explorer.component';
 import { LifecyclePatternsComponent } from './components/lifecycle-patterns/lifecycle-patterns.component';
+import { GraphPatternsComponent } from './components/graph-patterns/graph-patterns.component';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +18,8 @@ import { LifecyclePatternsComponent } from './components/lifecycle-patterns/life
     EventsTableComponent,
     SaOcdfgComponent,
     CausalExplorerComponent,
-    LifecyclePatternsComponent
+    LifecyclePatternsComponent,
+    GraphPatternsComponent
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'

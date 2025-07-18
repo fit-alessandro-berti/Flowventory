@@ -1,0 +1,46 @@
+.graph-patterns-container {
+  padding: 1.5rem;
+  height: 100%;
+  overflow: auto;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.patterns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pattern-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background-color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+
+  .support {
+    font-weight: 600;
+    color: #1976d2;
+    width: 3rem;
+  }
+
+  .edges {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    .edge-item {
+      background-color: #e3f2fd;
+      border-radius: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.9rem;
+    }
+  }
+}
