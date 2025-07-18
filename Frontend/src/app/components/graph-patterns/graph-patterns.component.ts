@@ -117,9 +117,23 @@ export class GraphPatternsComponent implements OnInit {
     if (this.showProblematicOnly) {
       filtered = filtered.filter(p => p.edges.some(e => e.includes('ST CHANGE')));
     }
-    const sorted = filtered.sort((a, b) => b.support - a.support);
+    const sorted = filtered.sort((a, b) => {
+      if (b.support !== a.support) {
+        return b.support - a.support;
+      }
+      return b.edges.length - a.edges.length;
+    });
+
+    const maximal: GraphPattern[] = [];
+    sorted.forEach(p => {
+      const isSubset = maximal.some(m => this.isSubset(p.edges, m.edges));
+      if (!isSubset) {
+        maximal.push(p);
+      }
+    });
+
     const limit = Math.max(1, this.maxPatterns);
-    this.patterns = sorted.slice(0, limit);
+    this.patterns = maximal.slice(0, limit);
   }
 
   private apriori(transactions: string[][], minSup: number): GraphPattern[] {
@@ -177,5 +191,9 @@ export class GraphPatternsComponent implements OnInit {
     const sortedA = [...a].sort();
     const sortedB = [...b].sort();
     return sortedA.every((val, idx) => val === sortedB[idx]);
+  }
+
+  private isSubset(sub: string[], sup: string[]): boolean {
+    return sub.every(e => sup.includes(e));
   }
 }
