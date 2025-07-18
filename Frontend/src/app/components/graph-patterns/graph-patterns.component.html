@@ -4,8 +4,14 @@
     <input id="minSupport" type="number" min="1" max="100" [(ngModel)]="minSupportPercent">
     <label for="minLength">Min Pattern Length:</label>
     <input id="minLength" type="number" min="1" [(ngModel)]="minPatternLength">
+    <label for="dfLength">DF Seq Length:</label>
+    <input id="dfLength" type="number" min="2" [(ngModel)]="dfSequenceLength">
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
+    <label class="checkbox">
+      <input type="checkbox" [(ngModel)]="includeE2OEdges" (change)="onPatternSettingsUpdate()">
+      Include e2o edges
+    </label>
     <label class="checkbox">
       <input type="checkbox" [(ngModel)]="showProblematicOnly" (change)="onPatternSettingsUpdate()">
       Problematic only

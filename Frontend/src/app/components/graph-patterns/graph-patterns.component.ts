@@ -21,7 +21,9 @@ export class GraphPatternsComponent implements OnInit {
   minPatternLength = 1;
   maxPatterns = 50;
   minSupportPercent = 10;
-  showProblematicOnly = false;
+  showProblematicOnly = true;
+  includeE2OEdges = true;
+  dfSequenceLength = 2;
   patterns: GraphPattern[] = [];
   loading = true;
 
@@ -73,7 +75,9 @@ export class GraphPatternsComponent implements OnInit {
               objectLabels.set(obj.id, baseLabel);
             }
             const label = objectLabels.get(obj.id)!;
-            edges.push(`${ev.type}-->${label}(e2o)`);
+            if (this.includeE2OEdges) {
+              edges.push(`${ev.type}-->${label}(e2o)`);
+            }
           }
         });
       });
@@ -88,10 +92,12 @@ export class GraphPatternsComponent implements OnInit {
         const objEvents = events
           .filter(e => e.relationships.some(r => r.objectId === objInfo.id))
           .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-        for (let i = 0; i < objEvents.length - 1; i++) {
-          const a = objEvents[i].type;
-          const b = objEvents[i + 1].type;
-          edges.push(`${a}-->${b}(df_${objInfo.type})`);
+        for (let i = 0; i <= objEvents.length - this.dfSequenceLength; i++) {
+          const seq = objEvents
+            .slice(i, i + this.dfSequenceLength)
+            .map(e => e.type)
+            .join('-->');
+          edges.push(`${seq}(df_${objInfo.type})`);
         }
       });
 
@@ -111,9 +117,23 @@ export class GraphPatternsComponent implements OnInit {
     if (this.showProblematicOnly) {
       filtered = filtered.filter(p => p.edges.some(e => e.includes('ST CHANGE')));
     }
-    const sorted = filtered.sort((a, b) => b.support - a.support);
+    const sorted = filtered.sort((a, b) => {
+      if (b.support !== a.support) {
+        return b.support - a.support;
+      }
+      return b.edges.length - a.edges.length;
+    });
+
+    const maximal: GraphPattern[] = [];
+    sorted.forEach(p => {
+      const isSubset = maximal.some(m => this.isSubset(p.edges, m.edges));
+      if (!isSubset) {
+        maximal.push(p);
+      }
+    });
+
     const limit = Math.max(1, this.maxPatterns);
-    this.patterns = sorted.slice(0, limit);
+    this.patterns = maximal.slice(0, limit);
   }
 
   private apriori(transactions: string[][], minSup: number): GraphPattern[] {
@@ -171,5 +191,9 @@ export class GraphPatternsComponent implements OnInit {
     const sortedA = [...a].sort();
     const sortedB = [...b].sort();
     return sortedA.every((val, idx) => val === sortedB[idx]);
+  }
+
+  private isSubset(sub: string[], sup: string[]): boolean {
+    return sub.every(e => sup.includes(e));
   }
 }
