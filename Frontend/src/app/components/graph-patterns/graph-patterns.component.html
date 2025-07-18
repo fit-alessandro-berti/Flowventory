@@ -1,0 +1,26 @@
+<div class="graph-patterns-container">
+  <div class="controls">
+    <label for="minSupport">Min Support (%):</label>
+    <input id="minSupport" type="number" min="1" max="100" [(ngModel)]="minSupportPercent">
+    <label for="minLength">Min Pattern Length:</label>
+    <input id="minLength" type="number" min="1" [(ngModel)]="minPatternLength">
+    <label for="maxPatterns"># Patterns:</label>
+    <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
+    <label class="checkbox">
+      <input type="checkbox" [(ngModel)]="showProblematicOnly" (change)="onPatternSettingsUpdate()">
+      Problematic only
+    </label>
+    <button class="update-btn" (click)="onPatternSettingsUpdate()">Update</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Computing patterns...</div>
+
+  <div *ngIf="!loading" class="patterns-list">
+    <div *ngFor="let pattern of patterns" class="pattern-item">
+      <span class="support">{{ pattern.support }}</span>
+      <div class="edges">
+        <div *ngFor="let edge of pattern.edges" class="edge-item">{{ edge }}</div>
+      </div>
+    </div>
+  </div>
+</div>
