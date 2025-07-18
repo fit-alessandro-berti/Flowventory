@@ -1,13 +1,13 @@
 <div class="graph-patterns-container">
   <div class="controls">
-    <label for="leadObjectType">Lead Object Type:</label>
-    <select id="leadObjectType" [(ngModel)]="leadObjectType" (change)="onLeadObjectTypeChange()">
-      <option *ngFor="let type of objectTypes" [value]="type">{{ type }}</option>
-    </select>
     <label for="minLength">Min Pattern Length:</label>
     <input id="minLength" type="number" min="1" [(ngModel)]="minPatternLength">
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
+    <label class="checkbox">
+      <input type="checkbox" [(ngModel)]="showProblematicOnly" (change)="onPatternSettingsUpdate()">
+      Problematic only
+    </label>
     <button class="update-btn" (click)="onPatternSettingsUpdate()">Update</button>
   </div>
 

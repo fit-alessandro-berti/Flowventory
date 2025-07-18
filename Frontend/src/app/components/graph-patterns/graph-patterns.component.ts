@@ -17,10 +17,10 @@ interface GraphPattern {
   styleUrl: './graph-patterns.component.scss'
 })
 export class GraphPatternsComponent implements OnInit {
-  objectTypes: string[] = [];
-  leadObjectType = 'MAT_PLA';
+  readonly leadObjectType = 'MAT_PLA';
   minPatternLength = 1;
   maxPatterns = 50;
+  showProblematicOnly = false;
   patterns: GraphPattern[] = [];
   loading = true;
 
@@ -32,20 +32,10 @@ export class GraphPatternsComponent implements OnInit {
     this.ocelDataService.ocelData$.subscribe(data => {
       if (data) {
         this.ocelData = data;
-        this.objectTypes = data.objectTypes.map(t => t.name);
-        if (!this.objectTypes.includes('MAT_PLA') && this.objectTypes.length > 0) {
-          this.leadObjectType = this.objectTypes[0];
-        }
         this.computeGraphPatterns();
         this.loading = false;
       }
     });
-  }
-
-  onLeadObjectTypeChange(): void {
-    if (this.ocelData) {
-      this.computeGraphPatterns();
-    }
   }
 
   onPatternSettingsUpdate(): void {
@@ -78,7 +68,8 @@ export class GraphPatternsComponent implements OnInit {
             if (!objectLabels.has(obj.id)) {
               const count = (objectCounters[obj.type] || 0) + 1;
               objectCounters[obj.type] = count;
-              objectLabels.set(obj.id, `${obj.type}${count}`);
+              const baseLabel = obj.type === 'SUPPLIER' ? obj.id : `${obj.type}${count}`;
+              objectLabels.set(obj.id, baseLabel);
             }
             const label = objectLabels.get(obj.id)!;
             edges.push(`${ev.type}-->${label}(e2o)`);
@@ -108,7 +99,10 @@ export class GraphPatternsComponent implements OnInit {
 
     const minSupport = Math.max(1, Math.ceil(transactions.length * 0.1));
     const mined = this.apriori(transactions, minSupport);
-    const filtered = mined.filter(p => p.edges.length >= Math.max(1, this.minPatternLength));
+    let filtered = mined.filter(p => p.edges.length >= Math.max(1, this.minPatternLength));
+    if (this.showProblematicOnly) {
+      filtered = filtered.filter(p => p.edges.some(e => e.includes('ST CHANGE')));
+    }
     const sorted = filtered.sort((a, b) => b.support - a.support);
     const limit = Math.max(1, this.maxPatterns);
     this.patterns = sorted.slice(0, limit);
