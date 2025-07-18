@@ -95,7 +95,11 @@ export class GraphPatternsComponent implements OnInit {
         }
       });
 
-      transactions.push(Array.from(new Set(edges)));
+      const transaction = Array.from(new Set(edges));
+      if (this.showProblematicOnly && !transaction.some(e => e.includes('ST CHANGE'))) {
+        return;
+      }
+      transactions.push(transaction);
     });
 
     const minSupport = Math.max(
