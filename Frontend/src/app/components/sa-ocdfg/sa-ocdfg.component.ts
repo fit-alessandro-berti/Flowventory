@@ -370,9 +370,16 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       edgeElement.setAttribute('data-target', graphEdge.target);
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      const points = edge.sections[0].bendPoints || [];
-      const startPoint = edge.sections[0].startPoint;
-      const endPoint = edge.sections[0].endPoint;
+
+      const section = edge.sections && edge.sections[0];
+      if (!section) {
+        console.warn('Edge section missing for edge', edge);
+        return;
+      }
+
+      const points = section.bendPoints || [];
+      const startPoint = section.startPoint;
+      const endPoint = section.endPoint;
       
       let d = `M ${startPoint.x} ${startPoint.y}`;
       points.forEach((point: any) => {
