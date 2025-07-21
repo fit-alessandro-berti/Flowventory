@@ -11,10 +11,10 @@ export class OcelDataService {
   private ocelDataSubject = new BehaviorSubject<OCELData | null>(null);
   public ocelData$ = this.ocelDataSubject.asObservable();
 
-  private filterSubject = new BehaviorSubject<{ id: number; objectType: string; objectIds: string[] }[]>([]);
+  private filterSubject = new BehaviorSubject<{ id: number; label: string; objectType: string; objectIds: string[] }[]>([]);
   public filters$ = this.filterSubject.asObservable();
 
-  private filters: { id: number; objectType: string; objectIds: Set<string> }[] = [];
+  private filters: { id: number; label: string; objectType: string; objectIds: Set<string> }[] = [];
   private nextFilterId = 1;
 
   constructor(private http: HttpClient) {
@@ -43,9 +43,9 @@ export class OcelDataService {
     });
   }
 
-  addFilter(objectType: string, objectIds: string[]): void {
+  addFilter(label: string, objectType: string, objectIds: string[]): void {
     const id = this.nextFilterId++;
-    this.filters.push({ id, objectType, objectIds: new Set(objectIds) });
+    this.filters.push({ id, label, objectType, objectIds: new Set(objectIds) });
     this.emitFilters();
     this.updateFilteredData();
   }
@@ -57,7 +57,12 @@ export class OcelDataService {
   }
 
   private emitFilters(): void {
-    const toEmit = this.filters.map(f => ({ id: f.id, objectType: f.objectType, objectIds: Array.from(f.objectIds) }));
+    const toEmit = this.filters.map(f => ({
+      id: f.id,
+      label: f.label,
+      objectType: f.objectType,
+      objectIds: Array.from(f.objectIds)
+    }));
     this.filterSubject.next(toEmit);
   }
 

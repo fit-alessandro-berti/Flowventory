@@ -12,7 +12,7 @@ import { OcelDataService } from '../../services/ocel-data.service';
 export class NavigationComponent {
   @Output() itemSelected = new EventEmitter<string>();
 
-  filters: { id: number; objectType: string; objectIds: string[] }[] = [];
+  filters: { id: number; label: string; objectType: string; objectIds: string[] }[] = [];
   eventCount = 0;
   objectCount = 0;
 

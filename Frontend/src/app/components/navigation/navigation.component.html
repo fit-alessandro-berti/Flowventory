@@ -14,7 +14,7 @@
     <h3>Filters</h3>
     <ul class="filter-list">
       <li *ngFor="let f of filters">
-        <span>{{ f.objectType }}: {{ f.objectIds.join(', ') }}</span>
+        <span>{{ f.label }} - {{ f.objectType }}: {{ f.objectIds.join(', ') }}</span>
         <button (click)="removeFilter(f.id)">✕</button>
       </li>
     </ul>

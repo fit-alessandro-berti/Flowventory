@@ -184,7 +184,7 @@ export class LifecyclePatternsComponent implements OnInit {
     if (selected.length === 0) return;
     const ids = new Set<string>();
     selected.forEach(p => p.objectIds.forEach(id => ids.add(id)));
-    this.ocelDataService.addFilter(this.leadObjectType, Array.from(ids));
+    this.ocelDataService.addFilter('Lifecycle Patterns Filter', this.leadObjectType, Array.from(ids));
   }
 }
 
