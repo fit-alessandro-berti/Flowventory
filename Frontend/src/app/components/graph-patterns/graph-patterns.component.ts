@@ -44,6 +44,9 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
   private ocelData: OCELData | null = null;
   private elk = new ELK();
 
+  activityStats: { activity: string; count: number; percent: number }[] | null = null;
+  statsTotal = 0;
+
   constructor(
     private ocelDataService: OcelDataService,
     private viewState: ViewStateService
@@ -289,6 +292,29 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     selected.forEach(p => p.objectIds.forEach(id => ids.add(id)));
     this.ocelDataService.addFilter('Graph Patterns Filter', this.leadObjectType, Array.from(ids));
     this.viewState.setView('sa-ocdfg');
+  }
+
+  openStats(pattern: GraphPatternDisplay): void {
+    if (!this.ocelData) return;
+    const counts = new Map<string, number>();
+    this.ocelData.events.forEach(ev => {
+      if (ev.relationships.some(r => pattern.objectIds.includes(r.objectId))) {
+        counts.set(ev.type, (counts.get(ev.type) || 0) + 1);
+      }
+    });
+    const total = Array.from(counts.values()).reduce((a, b) => a + b, 0);
+    this.activityStats = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([activity, count]) => ({
+        activity,
+        count,
+        percent: total ? (count / total) * 100 : 0
+      }));
+    this.statsTotal = total;
+  }
+
+  closeStats(): void {
+    this.activityStats = null;
   }
 
   private parsePattern(pattern: GraphPattern): {
