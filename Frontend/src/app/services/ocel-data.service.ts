@@ -80,11 +80,12 @@ export class OcelDataService {
     const idToType = new Map<string, string>();
     this.baseData.objects.forEach(o => idToType.set(o.id, o.type));
 
-    const triggerIds = new Set<string>();
+    const setsByFilter: Set<string>[] = [];
 
     this.filters.forEach(f => {
+      const objSet = new Set<string>();
       f.objectIds.forEach(id => {
-        triggerIds.add(id);
+        objSet.add(id);
         const related = new Set<string>();
         this.baseData!.events.forEach(ev => {
           if (ev.relationships.some(r => r.objectId === id)) {
@@ -94,18 +95,27 @@ export class OcelDataService {
                 RELATED_TYPES.has(idToType.get(r.objectId) || '')
               ) {
                 related.add(r.objectId);
-                triggerIds.add(r.objectId);
               }
             });
           }
         });
+        related.forEach(o => objSet.add(o));
         if (related.size > 0) {
           console.log(`Object ${id} related objects:`, Array.from(related));
         }
       });
+      setsByFilter.push(objSet);
     });
 
-    console.log('Applying filtering with objects:', Array.from(triggerIds));
+    let triggerIds = new Set<string>();
+    if (setsByFilter.length > 0) {
+      triggerIds = new Set(setsByFilter[0]);
+      for (const s of setsByFilter.slice(1)) {
+        triggerIds = new Set([...triggerIds].filter(id => s.has(id)));
+      }
+    }
+
+    console.log('Applying AND filtering with objects:', Array.from(triggerIds));
 
     const filteredEvents = this.baseData.events
       .filter(ev => ev.relationships.some(r => triggerIds.has(r.objectId)))
