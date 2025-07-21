@@ -49,9 +49,18 @@
     </div>
   </div>
   
+  <div class="tabs" *ngIf="!loading">
+    <button (click)="setActiveTab('graph')" [class.active]="activeTab==='graph'">Causal Graph</button>
+    <button (click)="setActiveTab('matrix')" [class.active]="activeTab==='matrix'">Correlation Matrix</button>
+  </div>
+
   <div *ngIf="loading" class="loading">Loading structural equation model...</div>
-  
-  <div *ngIf="!loading" class="graph-container">
+
+  <div *ngIf="!loading && activeTab==='graph'" class="graph-container">
     <svg #svgContainer class="graph-svg"></svg>
+  </div>
+
+  <div *ngIf="!loading && activeTab==='matrix'" class="graph-container">
+    <svg #matrixSvg class="graph-svg"></svg>
   </div>
 </div>
