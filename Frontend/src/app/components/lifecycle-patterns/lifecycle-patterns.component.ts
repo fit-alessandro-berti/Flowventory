@@ -29,6 +29,7 @@ export class LifecyclePatternsComponent implements OnInit {
   loading = true;
   minPatternLength = 1;
   maxPatterns = 50;
+  showProblematicOnly = true;
 
   private ocelData: OCELData | null = null;
   private sequencesByObject = new Map<string, string[]>();
@@ -74,6 +75,9 @@ export class LifecyclePatternsComponent implements OnInit {
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
       if (objEvents.length > 0) {
         const seq = objEvents.map(e => e.type);
+        if (this.showProblematicOnly && !seq.some(t => t.startsWith('ST CHANGE'))) {
+          return;
+        }
         sequences.push(seq);
         this.sequencesByObject.set(obj.id, seq);
       }
@@ -87,7 +91,10 @@ export class LifecyclePatternsComponent implements OnInit {
     const minSupport = Math.max(1, Math.ceil(sequences.length * 0.1));
     const results: PatternResult[] = [];
     this.prefixSpan(sequences, [], minSupport, results);
-    const filtered = results.filter(r => r.sequence.length >= Math.max(1, this.minPatternLength));
+    let filtered = results.filter(r => r.sequence.length >= Math.max(1, this.minPatternLength));
+    if (this.showProblematicOnly) {
+      filtered = filtered.filter(r => r.sequence.some(act => act.startsWith('ST CHANGE')));
+    }
     const sorted = filtered.sort((a, b) => b.support - a.support);
     const limit = Math.max(1, this.maxPatterns);
     this.patterns = sorted.slice(0, limit).map(p => ({
