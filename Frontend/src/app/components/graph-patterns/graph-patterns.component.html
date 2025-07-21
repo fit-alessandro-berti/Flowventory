@@ -24,9 +24,7 @@
   <div *ngIf="!loading" class="patterns-list">
     <div *ngFor="let pattern of patterns" class="pattern-item">
       <span class="support">{{ pattern.support }}</span>
-      <div class="edges">
-        <div *ngFor="let edge of pattern.edges" class="edge-item">{{ edge }}</div>
-      </div>
+      <svg #svgContainer class="pattern-svg"></svg>
     </div>
   </div>
 </div>
