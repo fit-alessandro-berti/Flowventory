@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OcelDataService } from '../../services/ocel-data.service';
+import { ViewStateService } from '../../services/view-state.service';
 import { OCELData } from '../../models/ocel.model';
 
 interface PatternResult {
@@ -34,7 +35,10 @@ export class LifecyclePatternsComponent implements OnInit {
   private ocelData: OCELData | null = null;
   private sequencesByObject = new Map<string, string[]>();
 
-  constructor(private ocelDataService: OcelDataService) {}
+  constructor(
+    private ocelDataService: OcelDataService,
+    private viewState: ViewStateService
+  ) {}
 
   ngOnInit(): void {
     this.ocelDataService.ocelData$.subscribe(data => {
@@ -192,6 +196,7 @@ export class LifecyclePatternsComponent implements OnInit {
     const ids = new Set<string>();
     selected.forEach(p => p.objectIds.forEach(id => ids.add(id)));
     this.ocelDataService.addFilter('Lifecycle Patterns Filter', this.leadObjectType, Array.from(ids));
+    this.viewState.setView('sa-ocdfg');
   }
 }
 
