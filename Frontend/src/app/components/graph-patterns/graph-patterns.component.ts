@@ -233,9 +233,12 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     return sub.every(e => sup.includes(e));
   }
 
-  private parsePattern(pattern: GraphPattern): { nodes: { id: string; type: string }[]; edges: { id: string; source: string; target: string }[] } {
+  private parsePattern(pattern: GraphPattern): {
+    nodes: { id: string; type: string }[];
+    edges: { id: string; source: string; target: string; label: string }[];
+  } {
     const nodeMap = new Map<string, { id: string; type: string }>();
-    const edges: { id: string; source: string; target: string }[] = [];
+    const edges: { id: string; source: string; target: string; label: string }[] = [];
     let edgeId = 0;
 
     pattern.edges.forEach(e => {
@@ -245,7 +248,7 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
         const to = e2o[2];
         if (!nodeMap.has(from)) nodeMap.set(from, { id: from, type: 'event' });
         if (!nodeMap.has(to)) nodeMap.set(to, { id: to, type: 'object' });
-        edges.push({ id: 'e' + edgeId++, source: from, target: to });
+        edges.push({ id: 'e' + edgeId++, source: from, target: to, label: 'e2o' });
         return;
       }
 
@@ -257,12 +260,34 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
           const b = seq[i + 1];
           if (!nodeMap.has(a)) nodeMap.set(a, { id: a, type: 'event' });
           if (!nodeMap.has(b)) nodeMap.set(b, { id: b, type: 'event' });
-          edges.push({ id: 'e' + edgeId++, source: a, target: b });
+          edges.push({ id: 'e' + edgeId++, source: a, target: b, label: `df_${df[2]}` });
         }
       }
     });
 
     return { nodes: Array.from(nodeMap.values()), edges };
+  }
+
+  private splitLabel(text: string, maxLen: number): string[] {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let current = '';
+    words.forEach(word => {
+      if ((current + ' ' + word).trim().length > maxLen) {
+        if (current) lines.push(current);
+        if (word.length > maxLen) {
+          const chunks = word.match(new RegExp(`.{1,${maxLen}}`, 'g')) || [];
+          lines.push(...chunks);
+          current = '';
+        } else {
+          current = word;
+        }
+      } else {
+        current = current ? `${current} ${word}` : word;
+      }
+    });
+    if (current) lines.push(current);
+    return lines;
   }
 
   private async renderGraphs(): Promise<void> {
@@ -277,6 +302,14 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     const graph = this.parsePattern(pattern);
     if (graph.nodes.length === 0) return;
 
+    const nodesWithMetrics = graph.nodes.map(n => {
+      const lines = this.splitLabel(n.id, 12);
+      const maxChars = Math.max(...lines.map(l => l.length));
+      const width = Math.max(60, maxChars * 8 + 16);
+      const height = lines.length * 16 + 16;
+      return { ...n, lines, width, height };
+    });
+
     const elkGraph = {
       id: 'root',
       layoutOptions: {
@@ -285,10 +318,10 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
         'elk.layered.spacing.nodeNodeBetweenLayers': '80',
         'elk.spacing.nodeNode': '60'
       },
-      children: graph.nodes.map(n => ({
+      children: nodesWithMetrics.map(n => ({
         id: n.id,
-        width: 100,
-        height: 40,
+        width: n.width,
+        height: n.height,
         labels: [{ text: n.id }]
       })),
       edges: graph.edges.map(e => ({ id: e.id, sources: [e.source], targets: [e.target] }))
@@ -296,13 +329,20 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
 
     try {
       const layout = await this.elk.layout(elkGraph);
-      this.drawPattern(layout, graph, svg);
+      this.drawPattern(layout, { nodes: nodesWithMetrics, edges: graph.edges }, svg);
     } catch (err) {
       console.error('Error laying out pattern graph:', err);
     }
   }
 
-  private drawPattern(layout: any, graph: { nodes: { id: string; type: string }[]; edges: { id: string; source: string; target: string }[] }, svg: SVGSVGElement): void {
+  private drawPattern(
+    layout: any,
+    graph: {
+      nodes: { id: string; type: string; lines: string[]; width: number; height: number }[];
+      edges: { id: string; source: string; target: string; label: string }[];
+    },
+    svg: SVGSVGElement
+  ): void {
     svg.innerHTML = '';
 
     const padding = 20;
@@ -344,6 +384,12 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
       path.setAttribute('stroke-width', '2');
       path.setAttribute('fill', 'none');
       path.setAttribute('marker-end', 'url(#arrow)');
+      const label = graph.edges.find(e => e.id === edge.id)?.label || '';
+      if (label) {
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = label;
+        path.appendChild(title);
+      }
       edgeGroup.appendChild(path);
     });
 
@@ -378,12 +424,20 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
       }
 
       const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const lineHeight = 14;
+      const startY = node.y + node.height / 2 - ((info.lines.length - 1) * lineHeight) / 2;
       text.setAttribute('x', (node.x + node.width / 2).toString());
-      text.setAttribute('y', (node.y + node.height / 2 + 4).toString());
+      text.setAttribute('y', startY.toString());
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('font-size', '12');
       text.setAttribute('fill', '#333');
-      text.textContent = node.id;
+      info.lines.forEach((line, idx) => {
+        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan.setAttribute('x', (node.x + node.width / 2).toString());
+        tspan.setAttribute('dy', idx === 0 ? '0' : '1.2em');
+        tspan.textContent = line;
+        text.appendChild(tspan);
+      });
       g.appendChild(text);
 
       nodeGroup.appendChild(g);
