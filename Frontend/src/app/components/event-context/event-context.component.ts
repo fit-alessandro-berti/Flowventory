@@ -75,27 +75,27 @@ export class EventContextComponent implements OnInit {
     const prefix = this.selectedActivity;
     const y = events.map(e => (e.type.startsWith(prefix) ? 1 : 0));
 
-    const b2_underOver = events.map(e => this.metricsMap.get(e.id)!.beforeUnderOver2);
-    const b2_GI = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsIssue2);
-    const b2_GR = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsReceipt2);
-    const b2_ST = events.map(e => this.metricsMap.get(e.id)!.beforeStChange2);
-    const b2_Diff = events.map(e => this.metricsMap.get(e.id)!.beforeStockDiff2);
-    const a2_underOver = events.map(e => this.metricsMap.get(e.id)!.afterUnderOver2);
-    const a2_GI = events.map(e => this.metricsMap.get(e.id)!.afterGoodsIssue2);
-    const a2_GR = events.map(e => this.metricsMap.get(e.id)!.afterGoodsReceipt2);
-    const a2_ST = events.map(e => this.metricsMap.get(e.id)!.afterStChange2);
-    const a2_Diff = events.map(e => this.metricsMap.get(e.id)!.afterStockDiff2);
+    const b2_underOver = events.map(e => this.metricsMap.get(e.id)?.beforeUnderOver2 || 0);
+    const b2_GI = events.map(e => this.metricsMap.get(e.id)?.beforeGoodsIssue2 || 0);
+    const b2_GR = events.map(e => this.metricsMap.get(e.id)?.beforeGoodsReceipt2 || 0);
+    const b2_ST = events.map(e => this.metricsMap.get(e.id)?.beforeStChange2 || 0);
+    const b2_Diff = events.map(e => this.metricsMap.get(e.id)?.beforeStockDiff2 || 0);
+    const a2_underOver = events.map(e => this.metricsMap.get(e.id)?.afterUnderOver2 || 0);
+    const a2_GI = events.map(e => this.metricsMap.get(e.id)?.afterGoodsIssue2 || 0);
+    const a2_GR = events.map(e => this.metricsMap.get(e.id)?.afterGoodsReceipt2 || 0);
+    const a2_ST = events.map(e => this.metricsMap.get(e.id)?.afterStChange2 || 0);
+    const a2_Diff = events.map(e => this.metricsMap.get(e.id)?.afterStockDiff2 || 0);
 
-    const b4_underOver = events.map(e => this.metricsMap.get(e.id)!.beforeUnderOver4);
-    const b4_GI = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsIssue4);
-    const b4_GR = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsReceipt4);
-    const b4_ST = events.map(e => this.metricsMap.get(e.id)!.beforeStChange4);
-    const b4_Diff = events.map(e => this.metricsMap.get(e.id)!.beforeStockDiff4);
-    const a4_underOver = events.map(e => this.metricsMap.get(e.id)!.afterUnderOver4);
-    const a4_GI = events.map(e => this.metricsMap.get(e.id)!.afterGoodsIssue4);
-    const a4_GR = events.map(e => this.metricsMap.get(e.id)!.afterGoodsReceipt4);
-    const a4_ST = events.map(e => this.metricsMap.get(e.id)!.afterStChange4);
-    const a4_Diff = events.map(e => this.metricsMap.get(e.id)!.afterStockDiff4);
+    const b4_underOver = events.map(e => this.metricsMap.get(e.id)?.beforeUnderOver4 || 0);
+    const b4_GI = events.map(e => this.metricsMap.get(e.id)?.beforeGoodsIssue4 || 0);
+    const b4_GR = events.map(e => this.metricsMap.get(e.id)?.beforeGoodsReceipt4 || 0);
+    const b4_ST = events.map(e => this.metricsMap.get(e.id)?.beforeStChange4 || 0);
+    const b4_Diff = events.map(e => this.metricsMap.get(e.id)?.beforeStockDiff4 || 0);
+    const a4_underOver = events.map(e => this.metricsMap.get(e.id)?.afterUnderOver4 || 0);
+    const a4_GI = events.map(e => this.metricsMap.get(e.id)?.afterGoodsIssue4 || 0);
+    const a4_GR = events.map(e => this.metricsMap.get(e.id)?.afterGoodsReceipt4 || 0);
+    const a4_ST = events.map(e => this.metricsMap.get(e.id)?.afterStChange4 || 0);
+    const a4_Diff = events.map(e => this.metricsMap.get(e.id)?.afterStockDiff4 || 0);
 
     this.correlations.before2.underOver = this.pearson(b2_underOver, y);
     this.correlations.before2.goodsIssue = this.pearson(b2_GI, y);
@@ -151,6 +151,34 @@ export class EventContextComponent implements OnInit {
     if (!this.ocelData) return;
     const ms2w = 14 * 24 * 60 * 60 * 1000;
     const ms4w = 28 * 24 * 60 * 60 * 1000;
+
+    this.metricsMap.clear();
+    // initialize metrics with zeros for all events so that missing data does not
+    // cause runtime errors when the log is heavily filtered
+    this.ocelData.events.forEach(ev => {
+      this.metricsMap.set(ev.id, {
+        beforeUnderOver2: 0,
+        beforeGoodsIssue2: 0,
+        beforeGoodsReceipt2: 0,
+        beforeStChange2: 0,
+        beforeStockDiff2: 0,
+        beforeUnderOver4: 0,
+        beforeGoodsIssue4: 0,
+        beforeGoodsReceipt4: 0,
+        beforeStChange4: 0,
+        beforeStockDiff4: 0,
+        afterUnderOver2: 0,
+        afterGoodsIssue2: 0,
+        afterGoodsReceipt2: 0,
+        afterStChange2: 0,
+        afterStockDiff2: 0,
+        afterUnderOver4: 0,
+        afterGoodsIssue4: 0,
+        afterGoodsReceipt4: 0,
+        afterStChange4: 0,
+        afterStockDiff4: 0
+      });
+    });
 
     const matObjects = this.ocelData.objects.filter(o => o.type === 'MAT_PLA');
     const eventsByMat = new Map<string, OCELEvent[]>();
