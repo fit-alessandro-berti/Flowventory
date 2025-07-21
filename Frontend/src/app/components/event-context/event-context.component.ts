@@ -42,7 +42,9 @@ export class EventContextComponent implements OnInit {
     this.ocelDataService.ocelData$.subscribe(data => {
       if (data) {
         this.ocelData = data;
-        this.activities = Array.from(new Set(data.events.map(e => e.type))).sort();
+        this.activities = Array.from(
+          new Set(data.events.map(e => e.type.split('(')[0].trim()))
+        ).sort();
         if (!this.activities.includes(this.selectedActivity) && this.activities.length) {
           this.selectedActivity = this.activities[0];
         }
@@ -56,7 +58,8 @@ export class EventContextComponent implements OnInit {
   updateCorrelations(): void {
     if (!this.ocelData) return;
     const events = this.ocelData.events;
-    const y = events.map(e => (e.type === this.selectedActivity ? 1 : 0));
+    const prefix = this.selectedActivity;
+    const y = events.map(e => (e.type.startsWith(prefix) ? 1 : 0));
 
     const beforeUnderOver = events.map(e => this.metricsMap.get(e.id)!.beforeUnderOver);
     const beforeGI = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsIssue);
