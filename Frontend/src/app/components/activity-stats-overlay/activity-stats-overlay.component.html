@@ -1,0 +1,17 @@
+<div class="overlay">
+  <div class="overlay-content">
+    <button class="close-btn" (click)="onClose()">✖</button>
+    <table class="stats-table">
+      <tr>
+        <th>Activity</th>
+        <th>Count</th>
+        <th>%</th>
+      </tr>
+      <tr *ngFor="let s of activityStats">
+        <td>{{ s.activity }}</td>
+        <td>{{ s.count }}</td>
+        <td>{{ s.percent | number:'1.0-2' }}%</td>
+      </tr>
+    </table>
+  </div>
+</div>
