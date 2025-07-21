@@ -21,6 +21,10 @@
         {{ option }}
       </button>
     </div>
+    <label class="checkbox">
+      <input type="checkbox" [(ngModel)]="onlyLifecycleEvents" (change)="onLifecycleToggle()">
+      Only START/ST CHANGE/END
+    </label>
   </div>
   
   <div *ngIf="loading" class="loading">Loading graph...</div>
