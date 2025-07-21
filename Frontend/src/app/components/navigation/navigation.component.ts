@@ -16,7 +16,8 @@ export class NavigationComponent {
     { label: 'SA-OCDFG', route: 'sa-ocdfg', icon: '🔀' },
     { label: 'Causal Explorer', route: 'causal-explorer', icon: '🔍' },
     { label: 'Lifecycle Patterns', route: 'lifecycle-patterns', icon: '🧩' },
-    { label: 'Graph Patterns', route: 'graph-patterns', icon: '📈' }
+    { label: 'Graph Patterns', route: 'graph-patterns', icon: '📈' },
+    { label: 'Event Context', route: 'event-context', icon: '📊' }
   ];
 
   activeItem = 'events';

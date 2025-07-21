@@ -1,0 +1,189 @@
+<div class="event-context-container">
+  <h2>Event Context Analysis</h2>
+
+  <div class="controls" *ngIf="!loading">
+    <label for="activitySelect">Activity:</label>
+    <select id="activitySelect" [(ngModel)]="selectedActivity" (change)="updateCorrelations()">
+      <option *ngFor="let act of activities" [value]="act">{{ act }}</option>
+    </select>
+  </div>
+
+  <div class="tabs" *ngIf="!loading">
+    <button (click)="activeTab='before'" [class.active]="activeTab==='before'">Before Event</button>
+    <button (click)="activeTab='after'" [class.active]="activeTab==='after'">After Event</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Computing metrics...</div>
+
+  <table *ngIf="!loading && activeTab==='before'" class="corr-table">
+    <thead>
+      <tr><th>Metric (Past 2 weeks)</th><th>Correlation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Under/Overstock occurred</td>
+        <td>
+          {{ correlations.before2.underOver | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before2.underOver)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Issue events</td>
+        <td>
+          {{ correlations.before2.goodsIssue | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before2.goodsIssue)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Receipt events</td>
+        <td>
+          {{ correlations.before2.goodsReceipt | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before2.goodsReceipt)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># ST CHANGE events</td>
+        <td>
+          {{ correlations.before2.stChange | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before2.stChange)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Stock difference</td>
+        <td>
+          {{ correlations.before2.stockDiff | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before2.stockDiff)"></div></div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table *ngIf="!loading && activeTab==='before'" class="corr-table">
+    <thead>
+      <tr><th>Metric (Past 4 weeks)</th><th>Correlation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Under/Overstock occurred</td>
+        <td>
+          {{ correlations.before4.underOver | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before4.underOver)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Issue events</td>
+        <td>
+          {{ correlations.before4.goodsIssue | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before4.goodsIssue)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Receipt events</td>
+        <td>
+          {{ correlations.before4.goodsReceipt | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before4.goodsReceipt)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># ST CHANGE events</td>
+        <td>
+          {{ correlations.before4.stChange | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before4.stChange)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Stock difference</td>
+        <td>
+          {{ correlations.before4.stockDiff | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.before4.stockDiff)"></div></div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table *ngIf="!loading && activeTab==='after'" class="corr-table">
+    <thead>
+      <tr><th>Metric (Next 2 weeks)</th><th>Correlation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Under/Overstock occurred</td>
+        <td>
+          {{ correlations.after2.underOver | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after2.underOver)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Issue events</td>
+        <td>
+          {{ correlations.after2.goodsIssue | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after2.goodsIssue)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Receipt events</td>
+        <td>
+          {{ correlations.after2.goodsReceipt | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after2.goodsReceipt)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># ST CHANGE events</td>
+        <td>
+          {{ correlations.after2.stChange | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after2.stChange)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Stock difference</td>
+        <td>
+          {{ correlations.after2.stockDiff | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after2.stockDiff)"></div></div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table *ngIf="!loading && activeTab==='after'" class="corr-table">
+    <thead>
+      <tr><th>Metric (Next 4 weeks)</th><th>Correlation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Under/Overstock occurred</td>
+        <td>
+          {{ correlations.after4.underOver | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after4.underOver)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Issue events</td>
+        <td>
+          {{ correlations.after4.goodsIssue | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after4.goodsIssue)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># Goods Receipt events</td>
+        <td>
+          {{ correlations.after4.goodsReceipt | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after4.goodsReceipt)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td># ST CHANGE events</td>
+        <td>
+          {{ correlations.after4.stChange | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after4.stChange)"></div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Stock difference</td>
+        <td>
+          {{ correlations.after4.stockDiff | number:'1.3-3' }}
+          <div class="corr-bar"><div class="marker" [style.left.%]="50 + 50 * scaleCorrelation(correlations.after4.stockDiff)"></div></div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -7,6 +7,7 @@ import { SaOcdfgComponent } from './components/sa-ocdfg/sa-ocdfg.component';
 import { CausalExplorerComponent } from './components/causal-explorer/causal-explorer.component';
 import { LifecyclePatternsComponent } from './components/lifecycle-patterns/lifecycle-patterns.component';
 import { GraphPatternsComponent } from './components/graph-patterns/graph-patterns.component';
+import { EventContextComponent } from './components/event-context/event-context.component';
 
 @Component({
   selector: 'app-root',
@@ -19,7 +20,8 @@ import { GraphPatternsComponent } from './components/graph-patterns/graph-patter
     SaOcdfgComponent,
     CausalExplorerComponent,
     LifecyclePatternsComponent,
-    GraphPatternsComponent
+    GraphPatternsComponent,
+    EventContextComponent
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
