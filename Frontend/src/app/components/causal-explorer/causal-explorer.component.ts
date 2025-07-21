@@ -84,7 +84,7 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    if (!this.loading) {
+    if (!this.loading && this.activeTab === 'graph') {
       this.renderGraph();
     }
   }
