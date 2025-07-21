@@ -307,15 +307,13 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
   private async renderGraph(): Promise<void> {
     if (!this.svgContainer || this.nodes.length === 0) return;
 
-    // Prepare ELK graph
+    // Prepare ELK graph using a force directed layout
     const elkGraph = {
       id: 'root',
       layoutOptions: {
-        'elk.algorithm': 'layered',
-        'elk.direction': 'RIGHT',
-        'elk.layered.spacing.nodeNodeBetweenLayers': '100',
-        'elk.spacing.nodeNode': '80',
-        'elk.layered.thoroughness': '100'
+        'elk.algorithm': 'force',
+        // More iterations lead to a more stable layout
+        'elk.iterations': '1000'
       },
       children: this.nodes.map(node => {
         const size = this.calculateNodeSize(node.label, node.isStart || node.isEnd || false);
@@ -427,6 +425,11 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       nodeElement.setAttribute('data-node-id', graphNode.id);
       nodeElement.style.cursor = 'pointer';
       
+      const isHexagon =
+        !graphNode.isStart &&
+        !graphNode.isEnd &&
+        (graphNode.label.startsWith('START') || graphNode.label.startsWith('ST CHANGE'));
+
       if (graphNode.isStart || graphNode.isEnd) {
         // Draw circle for start/end nodes
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -438,19 +441,38 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         circle.setAttribute('stroke-width', '2');
         circle.setAttribute('class', 'node-shape');
         nodeElement.appendChild(circle);
+      } else if (isHexagon) {
+        // Draw hexagon for specific activities
+        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        const cx = node.x + node.width / 2;
+        const cy = node.y + node.height / 2;
+        const rx = node.width / 2;
+        const ry = node.height / 2;
+        const points: string[] = [];
+        for (let i = 0; i < 6; i++) {
+          const angle = Math.PI / 3 * i + Math.PI / 6;
+          const px = cx + rx * Math.cos(angle);
+          const py = cy + ry * Math.sin(angle);
+          points.push(`${px},${py}`);
+        }
+        polygon.setAttribute('points', points.join(' '));
+        polygon.setAttribute('fill', graphNode.color);
+        polygon.setAttribute('stroke', '#333');
+        polygon.setAttribute('stroke-width', '2');
+        polygon.setAttribute('class', 'node-shape');
+        nodeElement.appendChild(polygon);
       } else {
-        // Draw rectangle for activity nodes
-        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        rect.setAttribute('x', node.x.toString());
-        rect.setAttribute('y', node.y.toString());
-        rect.setAttribute('width', node.width.toString());
-        rect.setAttribute('height', node.height.toString());
-        rect.setAttribute('fill', graphNode.color);
-        rect.setAttribute('stroke', '#333');
-        rect.setAttribute('stroke-width', '2');
-        rect.setAttribute('rx', '5');
-        rect.setAttribute('class', 'node-shape');
-        nodeElement.appendChild(rect);
+        // Draw ellipse for activity nodes
+        const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        ellipse.setAttribute('cx', (node.x + node.width / 2).toString());
+        ellipse.setAttribute('cy', (node.y + node.height / 2).toString());
+        ellipse.setAttribute('rx', (node.width / 2).toString());
+        ellipse.setAttribute('ry', (node.height / 2).toString());
+        ellipse.setAttribute('fill', graphNode.color);
+        ellipse.setAttribute('stroke', '#333');
+        ellipse.setAttribute('stroke-width', '2');
+        ellipse.setAttribute('class', 'node-shape');
+        nodeElement.appendChild(ellipse);
       }
 
       // Add text with line wrapping
