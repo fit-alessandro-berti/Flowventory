@@ -31,10 +31,13 @@ export class LifecyclePatternsComponent implements OnInit {
   minPatternLength = 1;
   maxPatterns = 50;
   prefilterProblematic = true;
-  postfilterProblematic = true;
+  postfilterProblematic = false;
+
+  statuses: string[] = ['All', 'Normal', 'Understock', 'Overstock'];
+  selectedStatus = 'All';
 
   private ocelData: OCELData | null = null;
-  private sequencesByObject = new Map<string, string[]>();
+  private sequencesByObject = new Map<string, string[][]>();
 
   constructor(
     private ocelDataService: OcelDataService,
@@ -73,18 +76,41 @@ export class LifecyclePatternsComponent implements OnInit {
     const sequences: string[][] = [];
     this.sequencesByObject.clear();
     const leadObjects = this.ocelData.objects.filter(o => o.type === this.leadObjectType);
+    const statusAttrs = ['Status', 'Current Status'];
+
+    const addSeq = (id: string, seq: string[]) => {
+      if (this.prefilterProblematic && !seq.some(t => t.startsWith('ST CHANGE'))) return;
+      sequences.push(seq);
+      if (!this.sequencesByObject.has(id)) {
+        this.sequencesByObject.set(id, []);
+      }
+      this.sequencesByObject.get(id)!.push(seq);
+    };
 
     leadObjects.forEach(obj => {
       const objEvents = this.ocelData!.events
         .filter(e => e.relationships.some(r => r.objectId === obj.id))
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-      if (objEvents.length > 0) {
+
+      if (objEvents.length === 0) return;
+
+      if (this.selectedStatus === 'All') {
         const seq = objEvents.map(e => e.type);
-        if (this.prefilterProblematic && !seq.some(t => t.startsWith('ST CHANGE'))) {
-          return;
-        }
-        sequences.push(seq);
-        this.sequencesByObject.set(obj.id, seq);
+        addSeq(obj.id, seq);
+      } else {
+        let current: string[] = [];
+        objEvents.forEach(ev => {
+          const st = String(ev.attributes.find(a => statusAttrs.includes(a.name))?.value || '');
+          if (st === this.selectedStatus) {
+            current.push(ev.type);
+          } else {
+            if (current.length) {
+              addSeq(obj.id, current);
+              current = [];
+            }
+          }
+        });
+        if (current.length) addSeq(obj.id, current);
       }
     });
 
@@ -172,8 +198,8 @@ export class LifecyclePatternsComponent implements OnInit {
 
   private getObjectsForPattern(pattern: string[]): string[] {
     const ids: string[] = [];
-    this.sequencesByObject.forEach((seq, id) => {
-      if (this.isSubsequence(pattern, seq)) {
+    this.sequencesByObject.forEach((seqs, id) => {
+      if (seqs.some(seq => this.isSubsequence(pattern, seq))) {
         ids.push(id);
       }
     });

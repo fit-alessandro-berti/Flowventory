@@ -1,13 +1,16 @@
 <div class="lifecycle-patterns-container">
   <div class="controls">
-    <label for="leadObjectType">Lead Object Type:</label>
     <select id="leadObjectType" [(ngModel)]="leadObjectType" (change)="onLeadObjectTypeChange()">
       <option *ngFor="let type of objectTypes" [value]="type">{{ type }}</option>
     </select>
-    <label for="minLength">Min Pattern Length:</label>
+    <label for="minLength">Min Length:</label>
     <input id="minLength" type="number" min="1" [(ngModel)]="minPatternLength">
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
+    <label for="statusFilter">Status:</label>
+    <select id="statusFilter" [(ngModel)]="selectedStatus" (change)="onPatternSettingsUpdate()">
+      <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+    </select>
     <label class="checkbox">
       <input type="checkbox" [(ngModel)]="prefilterProblematic" (change)="onPatternSettingsUpdate()">
       Prefilter ST CHANGE
