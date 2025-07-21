@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OcelDataService } from '../../services/ocel-data.service';
+import { ViewStateService } from '../../services/view-state.service';
 
 @Component({
   selector: 'app-navigation',
@@ -16,7 +17,10 @@ export class NavigationComponent {
   eventCount = 0;
   objectCount = 0;
 
-  constructor(private ocelDataService: OcelDataService) {
+  constructor(
+    private ocelDataService: OcelDataService,
+    private viewState: ViewStateService
+  ) {
     this.ocelDataService.filters$.subscribe(f => (this.filters = f));
     this.ocelDataService.ocelData$.subscribe(data => {
       this.eventCount = data?.events.length ?? 0;
@@ -42,5 +46,6 @@ export class NavigationComponent {
   selectItem(item: string): void {
     this.activeItem = item;
     this.itemSelected.emit(item);
+    this.viewState.setView(item);
   }
 }

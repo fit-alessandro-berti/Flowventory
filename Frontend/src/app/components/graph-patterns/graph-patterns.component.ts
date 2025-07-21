@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit, ViewChildren, QueryList, ElementRef }
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OcelDataService } from '../../services/ocel-data.service';
+import { ViewStateService } from '../../services/view-state.service';
 import { OCELData, OCELEvent, OCELObject } from '../../models/ocel.model';
 import ELK from 'elkjs/lib/elk.bundled.js';
 
@@ -40,7 +41,10 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
   private ocelData: OCELData | null = null;
   private elk = new ELK();
 
-  constructor(private ocelDataService: OcelDataService) {}
+  constructor(
+    private ocelDataService: OcelDataService,
+    private viewState: ViewStateService
+  ) {}
 
   ngOnInit(): void {
     this.ocelDataService.ocelData$.subscribe(data => {
@@ -254,6 +258,7 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     const ids = new Set<string>();
     selected.forEach(p => p.objectIds.forEach(id => ids.add(id)));
     this.ocelDataService.addFilter('Graph Patterns Filter', this.leadObjectType, Array.from(ids));
+    this.viewState.setView('sa-ocdfg');
   }
 
   private parsePattern(pattern: GraphPattern): {

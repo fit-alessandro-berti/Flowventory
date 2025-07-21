@@ -8,6 +8,7 @@ import { CausalExplorerComponent } from './components/causal-explorer/causal-exp
 import { LifecyclePatternsComponent } from './components/lifecycle-patterns/lifecycle-patterns.component';
 import { GraphPatternsComponent } from './components/graph-patterns/graph-patterns.component';
 import { EventContextComponent } from './components/event-context/event-context.component';
+import { ViewStateService } from './services/view-state.service';
 
 @Component({
   selector: 'app-root',
@@ -30,7 +31,11 @@ export class AppComponent {
   title = 'Frontend';
   currentView = 'events';
 
+  constructor(private viewState: ViewStateService) {
+    this.viewState.view$.subscribe(v => (this.currentView = v));
+  }
+
   onNavigationChange(view: string): void {
-    this.currentView = view;
+    this.viewState.setView(view);
   }
 }
