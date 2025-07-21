@@ -32,17 +32,17 @@
   </div>
 
   <div class="tabs" *ngIf="!loading">
-    <button (click)="activeTab='graph'" [class.active]="activeTab==='graph'">Graph</button>
-    <button (click)="activeTab='legend'" [class.active]="activeTab==='legend'">Legend</button>
+    <button (click)="setActiveTab('graph')" [class.active]="activeTab==='graph'">Graph</button>
+    <button (click)="setActiveTab('legend')" [class.active]="activeTab==='legend'">Legend</button>
   </div>
 
   <div *ngIf="loading" class="loading">Loading structural equation model...</div>
 
-  <div *ngIf="!loading && activeTab==='graph'" class="graph-container">
+  <div class="graph-container" [hidden]="loading || activeTab!=='graph'">
     <svg #svgContainer class="graph-svg"></svg>
   </div>
 
-  <div *ngIf="!loading && activeTab==='legend'" class="legend">
+  <div class="legend" [hidden]="loading || activeTab!=='legend'">
     <div class="legend-item">
       <div class="legend-shape latent"></div>
       <span>Latent Variables</span>
