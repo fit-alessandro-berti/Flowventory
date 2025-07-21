@@ -26,10 +26,13 @@ export class NavigationComponent {
       this.eventCount = data?.events.length ?? 0;
       this.objectCount = data?.objects.length ?? 0;
     });
+
+    this.viewState.view$.subscribe(v => (this.activeItem = v));
   }
 
   removeFilter(id: number): void {
     this.ocelDataService.removeFilter(id);
+    this.viewState.setView('sa-ocdfg');
   }
   
   menuItems = [
