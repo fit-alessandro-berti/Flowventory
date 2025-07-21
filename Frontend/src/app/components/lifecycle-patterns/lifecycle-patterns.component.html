@@ -26,8 +26,8 @@
   <div *ngIf="loading" class="loading">Computing patterns...</div>
 
   <div *ngIf="!loading" class="patterns-list">
-    <div *ngFor="let pattern of patterns" class="pattern-item">
-      <input type="checkbox" [(ngModel)]="pattern.selected">
+    <div *ngFor="let pattern of patterns" class="pattern-item" (click)="openStats(pattern)">
+      <input type="checkbox" [(ngModel)]="pattern.selected" (click)="$event.stopPropagation()">
       <span class="support">{{ pattern.support }}</span>
       <span class="sequence">
         <ng-container *ngFor="let act of pattern.sequence; let i = index">
@@ -35,6 +35,24 @@
           <span *ngIf="i < pattern.sequence.length - 1" class="relation">{{ pattern.immediate[i] ? '›' : '…' }}</span>
         </ng-container>
       </span>
+    </div>
+  </div>
+
+  <div class="overlay" *ngIf="activityStats">
+    <div class="overlay-content">
+      <button class="close-btn" (click)="closeStats()">✖</button>
+      <table class="stats-table">
+        <tr>
+          <th>Activity</th>
+          <th>Count</th>
+          <th>%</th>
+        </tr>
+        <tr *ngFor="let s of activityStats">
+          <td>{{ s.activity }}</td>
+          <td>{{ s.count }}</td>
+          <td>{{ s.percent | number:'1.0-2' }}%</td>
+        </tr>
+      </table>
     </div>
   </div>
 </div>
