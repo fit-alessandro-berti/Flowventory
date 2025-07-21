@@ -4,7 +4,7 @@
       <option *ngFor="let type of objectTypes" [value]="type">{{ type }}</option>
     </select>
     <label for="minLength">Min Length:</label>
-    <input id="minLength" type="number" min="1" [(ngModel)]="minPatternLength">
+    <input id="minLength" type="number" min="2" [(ngModel)]="minPatternLength">
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
     <label for="statusFilter">Status:</label>

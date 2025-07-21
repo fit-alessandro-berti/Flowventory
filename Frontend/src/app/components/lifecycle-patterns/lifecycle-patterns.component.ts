@@ -29,7 +29,7 @@ export class LifecyclePatternsComponent implements OnInit {
   leadObjectType = 'MAT_PLA';
   patterns: PatternDisplay[] = [];
   loading = true;
-  minPatternLength = 1;
+  minPatternLength = 2;
   maxPatterns = 50;
   prefilterProblematic = true;
   postfilterProblematic = false;
