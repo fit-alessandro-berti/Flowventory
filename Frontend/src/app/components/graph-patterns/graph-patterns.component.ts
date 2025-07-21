@@ -20,6 +20,8 @@ export class GraphPatternsComponent implements OnInit {
   readonly leadObjectType = 'MAT_PLA';
   minPatternLength = 1;
   maxPatterns = 50;
+  /** Maximum number of patterns/candidates considered during mining */
+  maxCandidatePatterns = 10000;
   minSupportPercent = 10;
   showProblematicOnly = true;
   includeE2OEdges = true;
@@ -145,18 +147,21 @@ export class GraphPatternsComponent implements OnInit {
     const itemSet = new Set<string>();
     transactions.forEach(t => t.forEach(i => itemSet.add(i)));
     candidates = Array.from(itemSet).map(i => [i]);
+    if (candidates.length > this.maxCandidatePatterns) {
+      candidates = candidates.slice(0, this.maxCandidatePatterns);
+    }
 
-    while (candidates.length > 0) {
+    while (candidates.length > 0 && results.length < this.maxCandidatePatterns) {
       const counts = new Map<string, number>();
       candidates.forEach(candidate => {
-        const key = candidate.sort().join('\u0001');
+        const key = candidate.slice().sort().join('\u0001');
         counts.set(key, 0);
       });
 
       transactions.forEach(t => {
         candidates.forEach(candidate => {
           if (candidate.every(item => t.includes(item))) {
-            const key = candidate.sort().join('\u0001');
+            const key = candidate.slice().sort().join('\u0001');
             counts.set(key, (counts.get(key) || 0) + 1);
           }
         });
@@ -164,7 +169,7 @@ export class GraphPatternsComponent implements OnInit {
 
       const frequent: string[][] = [];
       counts.forEach((count, key) => {
-        if (count >= minSup) {
+        if (count >= minSup && results.length < this.maxCandidatePatterns) {
           const items = key.split('\u0001');
           frequent.push(items);
           results.push({ edges: items, support: count });
@@ -173,8 +178,8 @@ export class GraphPatternsComponent implements OnInit {
 
       k++;
       candidates = [];
-      for (let i = 0; i < frequent.length; i++) {
-        for (let j = i + 1; j < frequent.length; j++) {
+      for (let i = 0; i < frequent.length && candidates.length < this.maxCandidatePatterns; i++) {
+        for (let j = i + 1; j < frequent.length && candidates.length < this.maxCandidatePatterns; j++) {
           const union = Array.from(new Set([...frequent[i], ...frequent[j]]));
           if (union.length === k && !candidates.some(c => this.sameSet(c, union))) {
             candidates.push(union);
