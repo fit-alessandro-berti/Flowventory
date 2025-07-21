@@ -9,10 +9,12 @@ interface EventMetrics {
   beforeGoodsIssue: number;
   beforeGoodsReceipt: number;
   beforeStChange: number;
+  beforeStockDiff: number;
   afterUnderOver: number;
   afterGoodsIssue: number;
   afterGoodsReceipt: number;
   afterStChange: number;
+  afterStockDiff: number;
 }
 
 @Component({
@@ -32,8 +34,8 @@ export class EventContextComponent implements OnInit {
   private metricsMap = new Map<string, EventMetrics>();
 
   correlations = {
-    before: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0 },
-    after: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0 }
+    before: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 },
+    after: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 }
   };
 
   constructor(private ocelDataService: OcelDataService) {}
@@ -65,20 +67,24 @@ export class EventContextComponent implements OnInit {
     const beforeGI = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsIssue);
     const beforeGR = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsReceipt);
     const beforeST = events.map(e => this.metricsMap.get(e.id)!.beforeStChange);
+    const beforeDiff = events.map(e => this.metricsMap.get(e.id)!.beforeStockDiff);
     const afterUnderOver = events.map(e => this.metricsMap.get(e.id)!.afterUnderOver);
     const afterGI = events.map(e => this.metricsMap.get(e.id)!.afterGoodsIssue);
     const afterGR = events.map(e => this.metricsMap.get(e.id)!.afterGoodsReceipt);
     const afterST = events.map(e => this.metricsMap.get(e.id)!.afterStChange);
+    const afterDiff = events.map(e => this.metricsMap.get(e.id)!.afterStockDiff);
 
     this.correlations.before.underOver = this.pearson(beforeUnderOver, y);
     this.correlations.before.goodsIssue = this.pearson(beforeGI, y);
     this.correlations.before.goodsReceipt = this.pearson(beforeGR, y);
     this.correlations.before.stChange = this.pearson(beforeST, y);
+    this.correlations.before.stockDiff = this.pearson(beforeDiff, y);
 
     this.correlations.after.underOver = this.pearson(afterUnderOver, y);
     this.correlations.after.goodsIssue = this.pearson(afterGI, y);
     this.correlations.after.goodsReceipt = this.pearson(afterGR, y);
     this.correlations.after.stChange = this.pearson(afterST, y);
+    this.correlations.after.stockDiff = this.pearson(afterDiff, y);
   }
 
   private pearson(x: number[], y: number[]): number {
@@ -98,6 +104,12 @@ export class EventContextComponent implements OnInit {
     }
     const denom = Math.sqrt(denomX * denomY);
     return denom ? num / denom : 0;
+  }
+
+  scaleCorrelation(c: number): number {
+    const sign = Math.sign(c);
+    const scaled = Math.log10(1 + 9 * Math.abs(c));
+    return sign * scaled;
   }
 
   private computeMetrics(): void {
@@ -121,6 +133,8 @@ export class EventContextComponent implements OnInit {
     eventsByMat.forEach(list => {
       list.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
       const times = list.map(e => new Date(e.time).getTime());
+      const stockBefore = list.map(e => parseFloat(String(e.attributes.find(a => a.name === 'Stock Before')?.value || '0')));
+      const stockAfter = list.map(e => parseFloat(String(e.attributes.find(a => a.name === 'Stock After')?.value || '0')));
       const statusFlags = list.map(e => {
         const st = String(e.attributes.find(a => a.name === 'Current Status')?.value || '');
         return st.toLowerCase() === 'understock' || st.toLowerCase() === 'overstock';
@@ -134,21 +148,25 @@ export class EventContextComponent implements OnInit {
       for (let i = 0; i < list.length; i++) {
         const t = times[i];
         while (times[start] < t - ms2w) {
-          if (isGI[start]) countGI--; 
-          if (isGR[start]) countGR--; 
-          if (isST[start]) countST--; 
-          if (statusFlags[start]) countStatus--; 
+          if (isGI[start]) countGI--;
+          if (isGR[start]) countGR--;
+          if (isST[start]) countST--;
+          if (statusFlags[start]) countStatus--;
           start++;
         }
+        const prevIdx = start - 1;
+        const beforeDiff = prevIdx >= 0 ? stockBefore[i] - stockAfter[prevIdx] : 0;
         const metrics: EventMetrics = {
           beforeUnderOver: countStatus > 0 ? 1 : 0,
           beforeGoodsIssue: countGI,
           beforeGoodsReceipt: countGR,
           beforeStChange: countST,
+          beforeStockDiff: beforeDiff,
           afterUnderOver: 0,
           afterGoodsIssue: 0,
           afterGoodsReceipt: 0,
-          afterStChange: 0
+          afterStChange: 0,
+          afterStockDiff: 0
         };
         this.metricsMap.set(list[i].id, metrics);
         if (isGI[i]) countGI++;
@@ -163,10 +181,10 @@ export class EventContextComponent implements OnInit {
       for (let i = list.length - 1; i >= 0; i--) {
         const t = times[i];
         while (times[end] > t + ms2w) {
-          if (isGI[end]) countGI--; 
-          if (isGR[end]) countGR--; 
-          if (isST[end]) countST--; 
-          if (statusFlags[end]) countStatus--; 
+          if (isGI[end]) countGI--;
+          if (isGR[end]) countGR--;
+          if (isST[end]) countST--;
+          if (statusFlags[end]) countStatus--;
           end--;
         }
         const m = this.metricsMap.get(list[i].id)!;
@@ -174,6 +192,8 @@ export class EventContextComponent implements OnInit {
         m.afterGoodsIssue = countGI;
         m.afterGoodsReceipt = countGR;
         m.afterStChange = countST;
+        const nextIdx = end + 1;
+        m.afterStockDiff = nextIdx < list.length ? stockBefore[nextIdx] - stockAfter[i] : 0;
         if (isGI[i]) countGI++;
         if (isGR[i]) countGR++;
         if (isST[i]) countST++;

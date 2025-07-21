@@ -45,3 +45,18 @@
 .corr-table th {
   text-align: left;
 }
+
+.corr-bar {
+  position: relative;
+  height: 0.5rem;
+  background: linear-gradient(to right, #dc3545 0%, #dc3545 50%, #0d6efd 50%, #0d6efd 100%);
+  margin-top: 0.25rem;
+}
+
+.marker {
+  position: absolute;
+  top: -0.25rem;
+  width: 0;
+  height: 1rem;
+  border-left: 2px solid #000;
+}
