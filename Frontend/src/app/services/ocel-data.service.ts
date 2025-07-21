@@ -11,7 +11,7 @@ export class OcelDataService {
   private ocelDataSubject = new BehaviorSubject<OCELData | null>(null);
   public ocelData$ = this.ocelDataSubject.asObservable();
 
-  private filterSubject = new BehaviorSubject<{ id: number; label: string; objectType: string; objectIds: string[] }[]>([]);
+  private filterSubject = new BehaviorSubject<{ id: number; label: string; objectType: string }[]>([]);
   public filters$ = this.filterSubject.asObservable();
 
   private filters: { id: number; label: string; objectType: string; objectIds: Set<string> }[] = [];
@@ -60,8 +60,7 @@ export class OcelDataService {
     const toEmit = this.filters.map(f => ({
       id: f.id,
       label: f.label,
-      objectType: f.objectType,
-      objectIds: Array.from(f.objectIds)
+      objectType: f.objectType
     }));
     this.filterSubject.next(toEmit);
   }
