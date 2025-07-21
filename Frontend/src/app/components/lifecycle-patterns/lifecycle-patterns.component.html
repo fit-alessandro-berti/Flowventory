@@ -9,6 +9,7 @@
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
     <button class="update-btn" (click)="onPatternSettingsUpdate()">Update</button>
+    <button class="filter-btn" (click)="applyFilter()">Filter</button>
   </div>
 
   <div *ngIf="loading" class="loading">Computing patterns...</div>
@@ -24,6 +25,5 @@
         </ng-container>
       </span>
     </div>
-    <button class="filter-btn" (click)="applyFilter()">Apply Filter</button>
   </div>
 </div>

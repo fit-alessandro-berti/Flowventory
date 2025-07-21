@@ -13,9 +13,15 @@ export class NavigationComponent {
   @Output() itemSelected = new EventEmitter<string>();
 
   filters: { id: number; objectType: string; objectIds: string[] }[] = [];
+  eventCount = 0;
+  objectCount = 0;
 
   constructor(private ocelDataService: OcelDataService) {
     this.ocelDataService.filters$.subscribe(f => (this.filters = f));
+    this.ocelDataService.ocelData$.subscribe(data => {
+      this.eventCount = data?.events.length ?? 0;
+      this.objectCount = data?.objects.length ?? 0;
+    });
   }
 
   removeFilter(id: number): void {
