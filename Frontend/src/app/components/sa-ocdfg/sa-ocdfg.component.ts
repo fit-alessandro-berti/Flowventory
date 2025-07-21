@@ -40,6 +40,8 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
   selectedEdge: GraphEdge | null = null;
   filterMin = 0;
   filterMax = 0;
+  filterMinDuration = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+  filterMaxDuration = { days: 0, hours: 0, minutes: 0, seconds: 0 };
 
   constructor(
     private ocelDataService: OcelDataService,
@@ -324,6 +326,22 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     } else {
       return `${seconds}s`;
     }
+  }
+
+  private msToDuration(ms: number) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return { days, hours, minutes, seconds };
+  }
+
+  private durationToMs(d: { days: number; hours: number; minutes: number; seconds: number }): number {
+    return (
+      ((d.days || 0) * 24 * 60 * 60 + (d.hours || 0) * 60 * 60 + (d.minutes || 0) * 60 + (d.seconds || 0)) *
+      1000
+    );
   }
 
   private calculateNodeSize(label: string, isStartEnd: boolean): { width: number; height: number } {
@@ -747,6 +765,16 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     const times = edge.realizations.map(r => r.time);
     this.filterMin = Math.min(...times);
     this.filterMax = Math.max(...times);
+    this.filterMinDuration = this.msToDuration(this.filterMin);
+    this.filterMaxDuration = this.msToDuration(this.filterMax);
+  }
+
+  updateFilterMin(): void {
+    this.filterMin = this.durationToMs(this.filterMinDuration);
+  }
+
+  updateFilterMax(): void {
+    this.filterMax = this.durationToMs(this.filterMaxDuration);
   }
 
   applyEdgeFilter(): void {

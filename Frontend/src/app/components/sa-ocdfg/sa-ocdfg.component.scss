@@ -133,6 +133,15 @@
     .edge-label {
       font-weight: 600;
     }
+    .time-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      input {
+        width: 3rem;
+        padding: 0.25rem;
+      }
+    }
   }
 
   .filter-btn {

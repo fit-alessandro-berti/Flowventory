@@ -28,9 +28,19 @@
     <div class="edge-filter" *ngIf="selectedEdge">
       <span class="edge-label">{{ selectedEdge.source }} -> {{ selectedEdge.target }}</span>
       <label>Min:</label>
-      <input type="number" [(ngModel)]="filterMin">
+      <div class="time-selector">
+        <input type="number" min="0" [(ngModel)]="filterMinDuration.days" (ngModelChange)="updateFilterMin()" placeholder="d">
+        <input type="number" min="0" [(ngModel)]="filterMinDuration.hours" (ngModelChange)="updateFilterMin()" placeholder="h">
+        <input type="number" min="0" [(ngModel)]="filterMinDuration.minutes" (ngModelChange)="updateFilterMin()" placeholder="m">
+        <input type="number" min="0" [(ngModel)]="filterMinDuration.seconds" (ngModelChange)="updateFilterMin()" placeholder="s">
+      </div>
       <label>Max:</label>
-      <input type="number" [(ngModel)]="filterMax">
+      <div class="time-selector">
+        <input type="number" min="0" [(ngModel)]="filterMaxDuration.days" (ngModelChange)="updateFilterMax()" placeholder="d">
+        <input type="number" min="0" [(ngModel)]="filterMaxDuration.hours" (ngModelChange)="updateFilterMax()" placeholder="h">
+        <input type="number" min="0" [(ngModel)]="filterMaxDuration.minutes" (ngModelChange)="updateFilterMax()" placeholder="m">
+        <input type="number" min="0" [(ngModel)]="filterMaxDuration.seconds" (ngModelChange)="updateFilterMax()" placeholder="s">
+      </div>
       <button class="filter-btn" (click)="applyEdgeFilter()">Filter</button>
     </div>
   </div>
