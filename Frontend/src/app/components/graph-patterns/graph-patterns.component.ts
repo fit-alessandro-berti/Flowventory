@@ -10,6 +10,11 @@ interface GraphPattern {
   support: number;
 }
 
+interface GraphPatternDisplay extends GraphPattern {
+  objectIds: string[];
+  selected?: boolean;
+}
+
 @Component({
   selector: 'app-graph-patterns',
   standalone: true,
@@ -27,7 +32,8 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
   showProblematicOnly = true;
   includeE2OEdges = true;
   dfSequenceLength = 2;
-  patterns: GraphPattern[] = [];
+  patterns: GraphPatternDisplay[] = [];
+  private edgesByObject = new Map<string, string[]>();
   loading = true;
 
   @ViewChildren('svgContainer') svgContainers!: QueryList<ElementRef<SVGSVGElement>>;
@@ -76,6 +82,7 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
 
     const leadObjects = this.ocelData.objects.filter(o => o.type === this.leadObjectType);
     const transactions: string[][] = [];
+    this.edgesByObject.clear();
 
     leadObjects.forEach(mat => {
       const events = (eventsIndex.get(mat.id) || [])
@@ -138,6 +145,7 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
         return;
       }
       transactions.push(transaction);
+      this.edgesByObject.set(mat.id, transaction);
     });
 
     const minSupport = Math.max(
@@ -165,7 +173,11 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     });
 
     const limit = Math.max(1, this.maxPatterns);
-    this.patterns = maximal.slice(0, limit);
+    this.patterns = maximal.slice(0, limit).map(p => ({
+      ...p,
+      objectIds: this.getObjectsForPattern(p.edges),
+      selected: false
+    }));
     setTimeout(() => this.renderGraphs(), 50);
   }
 
@@ -233,6 +245,24 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     return sub.every(e => sup.includes(e));
   }
 
+  private getObjectsForPattern(edges: string[]): string[] {
+    const ids: string[] = [];
+    this.edgesByObject.forEach((objEdges, id) => {
+      if (edges.every(e => objEdges.includes(e))) {
+        ids.push(id);
+      }
+    });
+    return ids;
+  }
+
+  applyFilter(): void {
+    const selected = this.patterns.filter(p => p.selected);
+    if (selected.length === 0) return;
+    const ids = new Set<string>();
+    selected.forEach(p => p.objectIds.forEach(id => ids.add(id)));
+    this.ocelDataService.addFilter('Graph Patterns Filter', this.leadObjectType, Array.from(ids));
+  }
+
   private parsePattern(pattern: GraphPattern): {
     nodes: { id: string; type: string }[];
     edges: { id: string; source: string; target: string; label: string }[];
@@ -298,7 +328,7 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  private async renderPatternGraph(pattern: GraphPattern, svg: SVGSVGElement): Promise<void> {
+  private async renderPatternGraph(pattern: GraphPatternDisplay, svg: SVGSVGElement): Promise<void> {
     const graph = this.parsePattern(pattern);
     if (graph.nodes.length === 0) return;
 

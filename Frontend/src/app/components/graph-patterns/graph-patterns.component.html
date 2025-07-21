@@ -17,12 +17,14 @@
       Problematic only
     </label>
     <button class="update-btn" (click)="onPatternSettingsUpdate()">Update</button>
+    <button class="filter-btn" (click)="applyFilter()">Filter</button>
   </div>
 
   <div *ngIf="loading" class="loading">Computing patterns...</div>
 
   <div *ngIf="!loading" class="patterns-list">
     <div *ngFor="let pattern of patterns" class="pattern-item">
+      <input type="checkbox" [(ngModel)]="pattern.selected">
       <span class="support">{{ pattern.support }}</span>
       <svg #svgContainer class="pattern-svg"></svg>
     </div>
