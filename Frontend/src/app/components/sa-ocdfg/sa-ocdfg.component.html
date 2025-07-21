@@ -27,19 +27,47 @@
     </label>
     <div class="edge-filter" *ngIf="selectedEdge">
       <span class="edge-label">{{ selectedEdge.source }} -> {{ selectedEdge.target }}</span>
-      <label>Min:</label>
-      <div class="time-selector">
-        <input type="number" min="0" [(ngModel)]="filterMinDuration.days" (ngModelChange)="updateFilterMin()" placeholder="d">
-        <input type="number" min="0" [(ngModel)]="filterMinDuration.hours" (ngModelChange)="updateFilterMin()" placeholder="h">
-        <input type="number" min="0" [(ngModel)]="filterMinDuration.minutes" (ngModelChange)="updateFilterMin()" placeholder="m">
-        <input type="number" min="0" [(ngModel)]="filterMinDuration.seconds" (ngModelChange)="updateFilterMin()" placeholder="s">
+      <div class="filter-row">
+        <label>Min:</label>
+        <div class="time-selector">
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMinDuration.days" (ngModelChange)="updateFilterMin()">
+            <span class="unit">D</span>
+          </div>
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMinDuration.hours" (ngModelChange)="updateFilterMin()">
+            <span class="unit">H</span>
+          </div>
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMinDuration.minutes" (ngModelChange)="updateFilterMin()">
+            <span class="unit">M</span>
+          </div>
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMinDuration.seconds" (ngModelChange)="updateFilterMin()">
+            <span class="unit">S</span>
+          </div>
+        </div>
       </div>
-      <label>Max:</label>
-      <div class="time-selector">
-        <input type="number" min="0" [(ngModel)]="filterMaxDuration.days" (ngModelChange)="updateFilterMax()" placeholder="d">
-        <input type="number" min="0" [(ngModel)]="filterMaxDuration.hours" (ngModelChange)="updateFilterMax()" placeholder="h">
-        <input type="number" min="0" [(ngModel)]="filterMaxDuration.minutes" (ngModelChange)="updateFilterMax()" placeholder="m">
-        <input type="number" min="0" [(ngModel)]="filterMaxDuration.seconds" (ngModelChange)="updateFilterMax()" placeholder="s">
+      <div class="filter-row">
+        <label>Max:</label>
+        <div class="time-selector">
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMaxDuration.days" (ngModelChange)="updateFilterMax()">
+            <span class="unit">D</span>
+          </div>
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMaxDuration.hours" (ngModelChange)="updateFilterMax()">
+            <span class="unit">H</span>
+          </div>
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMaxDuration.minutes" (ngModelChange)="updateFilterMax()">
+            <span class="unit">M</span>
+          </div>
+          <div class="time-input">
+            <input type="number" min="0" [(ngModel)]="filterMaxDuration.seconds" (ngModelChange)="updateFilterMax()">
+            <span class="unit">S</span>
+          </div>
+        </div>
       </div>
       <button class="filter-btn" (click)="applyEdgeFilter()">Filter</button>
     </div>
