@@ -18,6 +18,7 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
   loading = true;
   nodes: GraphNode[] = [];
   edges: GraphEdge[] = [];
+  layoutEdges: GraphEdge[] = [];
   
   private elk = new ELK();
   private colorPalette = [
@@ -40,10 +41,12 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     this.ocelDataService.ocelData$.subscribe(data => {
       if (data) {
         this.ocelData = data;
-        // Initialize all object types as active
-        data.objectTypes.forEach(type => {
-          this.activeObjectTypes.add(type.name);
-        });
+        // Initialize with only MAT_PLA active by default
+        this.activeObjectTypes.clear();
+        const leadType = 'MAT_PLA';
+        if (data.objectTypes.some(t => t.name === leadType)) {
+          this.activeObjectTypes.add(leadType);
+        }
         this.computeDirectlyFollowsGraph(data);
         this.loading = false;
       }
@@ -226,6 +229,9 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       .sort((a, b) => b.count - a.count)
       .slice(0, 100);
 
+    // Use only MAT_PLA edges to drive the layout
+    this.layoutEdges = this.edges.filter(e => e.objectType === 'MAT_PLA');
+
     // Filter nodes to only include those connected to the selected edges
     const connectedNodes = new Set<string>();
     this.edges.forEach(edge => {
@@ -326,10 +332,13 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
           labels: [{ text: node.label }]
         };
       }),
-      edges: this.edges.map(edge => ({
+      edges: this.layoutEdges.map(edge => ({
         id: edge.id,
         sources: [edge.source],
-        targets: [edge.target]
+        targets: [edge.target],
+        layoutOptions: {
+          'elk.weight': (edge.count || 1) * 5
+        }
       }))
     };
 
@@ -361,7 +370,12 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     edgeGroup.setAttribute('class', 'edges');
     
+    const nodeMap = new Map<string, any>();
+    layout.children.forEach((node: any) => nodeMap.set(node.id, node));
+    const layoutEdgeIds = new Set<string>();
+
     layout.edges.forEach((edge: any) => {
+      layoutEdgeIds.add(edge.id);
       const graphEdge = this.edges.find(e => e.id === edge.id);
       if (!graphEdge) return;
 
@@ -409,6 +423,50 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       edgeElement.addEventListener('mousemove', (event: MouseEvent) => this.updateLabelPosition(graphEdge.id, event));
       edgeElement.addEventListener('mouseleave', () => this.onEdgeLeave());
       
+      edgeGroup.appendChild(edgeElement);
+    });
+
+    // Draw edges that were not part of the layout using simple lines
+    this.edges.forEach(graphEdge => {
+      if (layoutEdgeIds.has(graphEdge.id)) return;
+      const source = nodeMap.get(graphEdge.source);
+      const target = nodeMap.get(graphEdge.target);
+      if (!source || !target) return;
+
+      const edgeElement = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      edgeElement.setAttribute('class', 'edge-group');
+      edgeElement.setAttribute('data-edge-id', graphEdge.id);
+      edgeElement.setAttribute('data-source', graphEdge.source);
+      edgeElement.setAttribute('data-target', graphEdge.target);
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const d =
+        `M ${source.x + source.width / 2} ${source.y + source.height / 2}` +
+        ` L ${target.x + target.width / 2} ${target.y + target.height / 2}`;
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', graphEdge.color);
+      path.setAttribute('stroke-width', Math.min(1 + graphEdge.count * 0.5, 5).toString());
+      path.setAttribute('fill', 'none');
+      path.setAttribute('marker-end', `url(#arrowhead-${graphEdge.objectType})`);
+      path.setAttribute('class', 'edge-path');
+
+      const hoverPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hoverPath.setAttribute('d', d);
+      hoverPath.setAttribute('stroke', 'transparent');
+      hoverPath.setAttribute('stroke-width', '20');
+      hoverPath.setAttribute('fill', 'none');
+      hoverPath.style.cursor = 'pointer';
+
+      edgeElement.appendChild(path);
+      edgeElement.appendChild(hoverPath);
+
+      edgeElement.setAttribute('data-midx', ((source.x + source.width / 2 + target.x + target.width / 2) / 2).toString());
+      edgeElement.setAttribute('data-midy', ((source.y + source.height / 2 + target.y + target.height / 2) / 2).toString());
+
+      edgeElement.addEventListener('mouseenter', (event: MouseEvent) => this.onEdgeHover(graphEdge.id, event));
+      edgeElement.addEventListener('mousemove', (event: MouseEvent) => this.updateLabelPosition(graphEdge.id, event));
+      edgeElement.addEventListener('mouseleave', () => this.onEdgeLeave());
+
       edgeGroup.appendChild(edgeElement);
     });
     
