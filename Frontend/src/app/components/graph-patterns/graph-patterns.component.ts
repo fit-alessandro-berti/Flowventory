@@ -21,7 +21,7 @@ export class GraphPatternsComponent implements OnInit {
   minPatternLength = 1;
   maxPatterns = 50;
   /** Maximum number of patterns/candidates considered during mining */
-  maxCandidatePatterns = 10000;
+  maxCandidatePatterns = 3000;
   minSupportPercent = 10;
   showProblematicOnly = true;
   includeE2OEdges = true;
@@ -51,14 +51,36 @@ export class GraphPatternsComponent implements OnInit {
 
   private computeGraphPatterns(): void {
     if (!this.ocelData) return;
+    const objectIndex = new Map<string, OCELObject>();
+    this.ocelData.objects.forEach(o => objectIndex.set(o.id, o));
+
+    const eventsIndex = new Map<string, OCELEvent[]>();
+    this.ocelData.events.forEach(ev => {
+      ev.relationships.forEach(rel => {
+        if (!eventsIndex.has(rel.objectId)) {
+          eventsIndex.set(rel.objectId, []);
+        }
+        eventsIndex.get(rel.objectId)!.push(ev);
+      });
+    });
 
     const leadObjects = this.ocelData.objects.filter(o => o.type === this.leadObjectType);
     const transactions: string[][] = [];
 
     leadObjects.forEach(mat => {
-      const events = this.ocelData!.events
-        .filter(e => e.relationships.some(r => r.objectId === mat.id))
+      const events = (eventsIndex.get(mat.id) || [])
+        .slice()
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+      const eventsByObject = new Map<string, OCELEvent[]>();
+      events.forEach(ev => {
+        ev.relationships.forEach(rel => {
+          if (!eventsByObject.has(rel.objectId)) {
+            eventsByObject.set(rel.objectId, []);
+          }
+          eventsByObject.get(rel.objectId)!.push(ev);
+        });
+      });
 
       const edges: string[] = [];
       const objectLabels = new Map<string, string>();
@@ -66,7 +88,7 @@ export class GraphPatternsComponent implements OnInit {
 
       events.forEach((ev, idx) => {
         ev.relationships.forEach(rel => {
-          const obj = this.ocelData!.objects.find(o => o.id === rel.objectId);
+          const obj = objectIndex.get(rel.objectId);
           if (!obj) return;
           if (obj.type === this.leadObjectType) return; // skip main object
           if (obj.type === 'PO_ITEM' || obj.type === 'SO_ITEM' || obj.type === 'SUPPLIER') {
@@ -86,14 +108,12 @@ export class GraphPatternsComponent implements OnInit {
 
       const involvedObjects: { id: string; type: string }[] = [{ id: mat.id, type: 'MAT_PLA' }];
       objectLabels.forEach((label, id) => {
-        const obj = this.ocelData!.objects.find(o => o.id === id)!;
+        const obj = objectIndex.get(id)!;
         involvedObjects.push({ id: obj.id, type: obj.type });
       });
 
       involvedObjects.forEach(objInfo => {
-        const objEvents = events
-          .filter(e => e.relationships.some(r => r.objectId === objInfo.id))
-          .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        const objEvents = eventsByObject.get(objInfo.id) || [];
         for (let i = 0; i <= objEvents.length - this.dfSequenceLength; i++) {
           const seq = objEvents
             .slice(i, i + this.dfSequenceLength)
