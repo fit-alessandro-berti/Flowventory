@@ -8,6 +8,10 @@
     <input id="dfLength" type="number" min="2" [(ngModel)]="dfSequenceLength">
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
+    <label for="statusFilter">Status:</label>
+    <select id="statusFilter" [(ngModel)]="selectedStatus" (change)="onPatternSettingsUpdate()">
+      <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+    </select>
     <label class="checkbox">
       <input type="checkbox" [(ngModel)]="includeE2OEdges" (change)="onPatternSettingsUpdate()">
       Include e2o edges

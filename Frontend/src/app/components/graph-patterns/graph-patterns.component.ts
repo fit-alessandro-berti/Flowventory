@@ -33,8 +33,11 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
   includeE2OEdges = true;
   dfSequenceLength = 2;
   patterns: GraphPatternDisplay[] = [];
-  private edgesByObject = new Map<string, string[]>();
+  private edgesByObject = new Map<string, string[][]>();
   loading = true;
+
+  statuses: string[] = ['All', 'Normal', 'Understock', 'Overstock'];
+  selectedStatus = 'All';
 
   @ViewChildren('svgContainer') svgContainers!: QueryList<ElementRef<SVGSVGElement>>;
 
@@ -87,65 +90,91 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
     const transactions: string[][] = [];
     this.edgesByObject.clear();
 
+    const statusAttrs = ['Status', 'Current Status'];
+
     leadObjects.forEach(mat => {
-      const events = (eventsIndex.get(mat.id) || [])
+      const allEvents = (eventsIndex.get(mat.id) || [])
         .slice()
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
-      const eventsByObject = new Map<string, OCELEvent[]>();
-      events.forEach(ev => {
-        ev.relationships.forEach(rel => {
-          if (!eventsByObject.has(rel.objectId)) {
-            eventsByObject.set(rel.objectId, []);
-          }
-          eventsByObject.get(rel.objectId)!.push(ev);
-        });
-      });
-
-      const edges: string[] = [];
-      const objectLabels = new Map<string, string>();
-      const objectCounters: { [type: string]: number } = {};
-
-      events.forEach((ev, idx) => {
-        ev.relationships.forEach(rel => {
-          const obj = objectIndex.get(rel.objectId);
-          if (!obj) return;
-          if (obj.type === this.leadObjectType) return; // skip main object
-          if (obj.type === 'PO_ITEM' || obj.type === 'SO_ITEM' || obj.type === 'SUPPLIER') {
-            if (!objectLabels.has(obj.id)) {
-              const count = (objectCounters[obj.type] || 0) + 1;
-              objectCounters[obj.type] = count;
-              const baseLabel = obj.type === 'SUPPLIER' ? obj.id : `${obj.type}${count}`;
-              objectLabels.set(obj.id, baseLabel);
-            }
-            const label = objectLabels.get(obj.id)!;
-            if (this.includeE2OEdges) {
-              edges.push(`${ev.type}-->${label}(e2o)`);
+      const segments: OCELEvent[][] = [];
+      if (this.selectedStatus === 'All') {
+        if (allEvents.length) segments.push(allEvents);
+      } else {
+        let current: OCELEvent[] = [];
+        allEvents.forEach(ev => {
+          const st = String(ev.attributes.find(a => statusAttrs.includes(a.name))?.value || '');
+          if (st === this.selectedStatus) {
+            current.push(ev);
+          } else {
+            if (current.length) {
+              segments.push(current);
+              current = [];
             }
           }
         });
-      });
+        if (current.length) segments.push(current);
+      }
 
-      const involvedObjects: { id: string; type: string }[] = [{ id: mat.id, type: 'MAT_PLA' }];
-      objectLabels.forEach((label, id) => {
-        const obj = objectIndex.get(id)!;
-        involvedObjects.push({ id: obj.id, type: obj.type });
-      });
+      segments.forEach(segEvents => {
+        const eventsByObject = new Map<string, OCELEvent[]>();
+        segEvents.forEach(ev => {
+          ev.relationships.forEach(rel => {
+            if (!eventsByObject.has(rel.objectId)) {
+              eventsByObject.set(rel.objectId, []);
+            }
+            eventsByObject.get(rel.objectId)!.push(ev);
+          });
+        });
 
-      involvedObjects.forEach(objInfo => {
-        const objEvents = eventsByObject.get(objInfo.id) || [];
-        for (let i = 0; i <= objEvents.length - this.dfSequenceLength; i++) {
-          const seq = objEvents
-            .slice(i, i + this.dfSequenceLength)
-            .map(e => e.type)
-            .join('-->');
-          edges.push(`${seq}(df_${objInfo.type})`);
+        const edges: string[] = [];
+        const objectLabels = new Map<string, string>();
+        const objectCounters: { [type: string]: number } = {};
+
+        segEvents.forEach(ev => {
+          ev.relationships.forEach(rel => {
+            const obj = objectIndex.get(rel.objectId);
+            if (!obj) return;
+            if (obj.type === this.leadObjectType) return; // skip main object
+            if (obj.type === 'PO_ITEM' || obj.type === 'SO_ITEM' || obj.type === 'SUPPLIER') {
+              if (!objectLabels.has(obj.id)) {
+                const count = (objectCounters[obj.type] || 0) + 1;
+                objectCounters[obj.type] = count;
+                const baseLabel = obj.type === 'SUPPLIER' ? obj.id : `${obj.type}${count}`;
+                objectLabels.set(obj.id, baseLabel);
+              }
+              const label = objectLabels.get(obj.id)!;
+              if (this.includeE2OEdges) {
+                edges.push(`${ev.type}-->${label}(e2o)`);
+              }
+            }
+          });
+        });
+
+        const involvedObjects: { id: string; type: string }[] = [{ id: mat.id, type: 'MAT_PLA' }];
+        objectLabels.forEach((label, id) => {
+          const obj = objectIndex.get(id)!;
+          involvedObjects.push({ id: obj.id, type: obj.type });
+        });
+
+        involvedObjects.forEach(objInfo => {
+          const objEvents = eventsByObject.get(objInfo.id) || [];
+          for (let i = 0; i <= objEvents.length - this.dfSequenceLength; i++) {
+            const seq = objEvents
+              .slice(i, i + this.dfSequenceLength)
+              .map(e => e.type)
+              .join('-->');
+            edges.push(`${seq}(df_${objInfo.type})`);
+          }
+        });
+
+        const transaction = Array.from(new Set(edges));
+        transactions.push(transaction);
+        if (!this.edgesByObject.has(mat.id)) {
+          this.edgesByObject.set(mat.id, []);
         }
+        this.edgesByObject.get(mat.id)!.push(transaction);
       });
-
-      const transaction = Array.from(new Set(edges));
-      transactions.push(transaction);
-      this.edgesByObject.set(mat.id, transaction);
     });
 
     const minSupport = Math.max(
@@ -244,8 +273,9 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
 
   private getObjectsForPattern(edges: string[]): string[] {
     const ids: string[] = [];
-    this.edgesByObject.forEach((objEdges, id) => {
-      if (edges.every(e => objEdges.includes(e))) {
+    this.edgesByObject.forEach((segments, id) => {
+      const match = segments.some(seg => edges.every(e => seg.includes(e)));
+      if (match) {
         ids.push(id);
       }
     });
