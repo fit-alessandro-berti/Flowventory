@@ -11,7 +11,7 @@ export class OcelDataService {
   private ocelDataSubject = new BehaviorSubject<OCELData | null>(null);
   public ocelData$ = this.ocelDataSubject.asObservable();
 
-  private filterSubject = new BehaviorSubject<{ id: number; label: string; objectType: string }[]>([]);
+  private filterSubject = new BehaviorSubject<{ id: number; label: string; objectType: string; objectIds: string[] }[]>([]);
   public filters$ = this.filterSubject.asObservable();
 
   private filters: { id: number; label: string; objectType: string; objectIds: Set<string> }[] = [];
@@ -45,12 +45,14 @@ export class OcelDataService {
 
   addFilter(label: string, objectType: string, objectIds: string[]): void {
     const id = this.nextFilterId++;
+    console.log('Adding filter', label, 'type', objectType, 'ids', objectIds);
     this.filters.push({ id, label, objectType, objectIds: new Set(objectIds) });
     this.emitFilters();
     this.updateFilteredData();
   }
 
   removeFilter(filterId: number): void {
+    console.log('Removing filter with id', filterId);
     this.filters = this.filters.filter(f => f.id !== filterId);
     this.emitFilters();
     this.updateFilteredData();
@@ -60,7 +62,8 @@ export class OcelDataService {
     const toEmit = this.filters.map(f => ({
       id: f.id,
       label: f.label,
-      objectType: f.objectType
+      objectType: f.objectType,
+      objectIds: Array.from(f.objectIds)
     }));
     this.filterSubject.next(toEmit);
   }
@@ -68,6 +71,7 @@ export class OcelDataService {
   private updateFilteredData(): void {
     if (!this.baseData) return;
     if (this.filters.length === 0) {
+      console.log('No filters active, using base OCEL data');
       this.ocelDataSubject.next(this.baseData);
       return;
     }
@@ -76,13 +80,22 @@ export class OcelDataService {
     this.filters.forEach(f => {
       f.objectIds.forEach(id => {
         triggerIds.add(id);
+        const related = new Set<string>();
         this.baseData!.events.forEach(ev => {
           if (ev.relationships.some(r => r.objectId === id)) {
-            ev.relationships.forEach(r => triggerIds.add(r.objectId));
+            ev.relationships.forEach(r => {
+              if (r.objectId !== id) related.add(r.objectId);
+              triggerIds.add(r.objectId);
+            });
           }
         });
+        if (related.size > 0) {
+          console.log(`Object ${id} related objects:`, Array.from(related));
+        }
       });
     });
+
+    console.log('Applying filtering with objects:', Array.from(triggerIds));
 
     const filteredEvents = this.baseData.events.filter(ev =>
       ev.relationships.some(r => triggerIds.has(r.objectId))
@@ -99,6 +112,9 @@ export class OcelDataService {
       objects: filteredObjects
     };
 
+    console.log(
+      `Filtered OCEL log has ${filteredData.events.length} events and ${filteredData.objects.length} objects`
+    );
     this.ocelDataSubject.next(filteredData);
   }
 
