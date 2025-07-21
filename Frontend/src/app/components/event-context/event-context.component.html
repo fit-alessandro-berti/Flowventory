@@ -1,0 +1,41 @@
+<div class="event-context-container">
+  <h2>Event Context Analysis</h2>
+
+  <div class="controls" *ngIf="!loading">
+    <label for="activitySelect">Activity:</label>
+    <select id="activitySelect" [(ngModel)]="selectedActivity" (change)="updateCorrelations()">
+      <option *ngFor="let act of activities" [value]="act">{{ act }}</option>
+    </select>
+  </div>
+
+  <div class="tabs" *ngIf="!loading">
+    <button (click)="activeTab='before'" [class.active]="activeTab==='before'">Before Event</button>
+    <button (click)="activeTab='after'" [class.active]="activeTab==='after'">After Event</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Computing metrics...</div>
+
+  <table *ngIf="!loading && activeTab==='before'" class="corr-table">
+    <thead>
+      <tr><th>Metric (Past 2 weeks)</th><th>Pearson Corr.</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Under/Overstock occurred</td><td>{{ correlations.before.underOver | number:'1.3-3' }}</td></tr>
+      <tr><td># Goods Issue events</td><td>{{ correlations.before.goodsIssue | number:'1.3-3' }}</td></tr>
+      <tr><td># Goods Receipt events</td><td>{{ correlations.before.goodsReceipt | number:'1.3-3' }}</td></tr>
+      <tr><td># ST CHANGE events</td><td>{{ correlations.before.stChange | number:'1.3-3' }}</td></tr>
+    </tbody>
+  </table>
+
+  <table *ngIf="!loading && activeTab==='after'" class="corr-table">
+    <thead>
+      <tr><th>Metric (Next 2 weeks)</th><th>Pearson Corr.</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Under/Overstock occurred</td><td>{{ correlations.after.underOver | number:'1.3-3' }}</td></tr>
+      <tr><td># Goods Issue events</td><td>{{ correlations.after.goodsIssue | number:'1.3-3' }}</td></tr>
+      <tr><td># Goods Receipt events</td><td>{{ correlations.after.goodsReceipt | number:'1.3-3' }}</td></tr>
+      <tr><td># ST CHANGE events</td><td>{{ correlations.after.stChange | number:'1.3-3' }}</td></tr>
+    </tbody>
+  </table>
+</div>

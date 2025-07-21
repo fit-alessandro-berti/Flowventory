@@ -1,0 +1,47 @@
+.event-context-container {
+  padding: 1.5rem;
+  height: 100%;
+  overflow: auto;
+}
+
+.controls {
+  margin-bottom: 1rem;
+}
+
+.tabs {
+  margin-bottom: 1rem;
+}
+
+.tabs button {
+  margin-right: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: #e9ecef;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background-color: #007bff;
+  color: #fff;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.corr-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.corr-table th,
+.corr-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.corr-table th {
+  text-align: left;
+}
