@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivityStatsOverlayComponent } from '../activity-stats-overlay/activity-stats-overlay.component';
 import { OcelDataService } from '../../services/ocel-data.service';
 import { ViewStateService } from '../../services/view-state.service';
 import { OCELData } from '../../models/ocel.model';
@@ -19,7 +20,7 @@ interface PatternDisplay extends PatternResult {
 @Component({
   selector: 'app-lifecycle-patterns',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ActivityStatsOverlayComponent],
   templateUrl: './lifecycle-patterns.component.html',
   styleUrl: './lifecycle-patterns.component.scss'
 })
@@ -39,9 +40,7 @@ export class LifecyclePatternsComponent implements OnInit {
   private ocelData: OCELData | null = null;
   private sequencesByObject = new Map<string, string[][]>();
 
-  activityStats: { activity: string; count: number; percent: number }[] | null = null;
-
-  statsTotal = 0;
+  statsObjectIds: string[] | null = null;
 
   constructor(
     private ocelDataService: OcelDataService,
@@ -231,26 +230,11 @@ export class LifecyclePatternsComponent implements OnInit {
   }
 
   openStats(pattern: PatternDisplay): void {
-    if (!this.ocelData) return;
-    const counts = new Map<string, number>();
-    this.ocelData.events.forEach(ev => {
-      if (ev.relationships.some(r => pattern.objectIds.includes(r.objectId))) {
-        counts.set(ev.type, (counts.get(ev.type) || 0) + 1);
-      }
-    });
-    const total = Array.from(counts.values()).reduce((a, b) => a + b, 0);
-    this.activityStats = Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([activity, count]) => ({
-        activity,
-        count,
-        percent: total ? (count / total) * 100 : 0
-      }));
-    this.statsTotal = total;
+    this.statsObjectIds = pattern.objectIds;
   }
 
   closeStats(): void {
-    this.activityStats = null;
+    this.statsObjectIds = null;
   }
 }
 

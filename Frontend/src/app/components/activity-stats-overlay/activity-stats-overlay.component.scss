@@ -1,0 +1,43 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+
+  .overlay-content {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    max-height: 80%;
+    max-width: 90%;
+    overflow: auto;
+    position: relative;
+
+    .close-btn {
+      position: absolute;
+      top: 0.25rem;
+      right: 0.25rem;
+      background: transparent;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+
+      th,
+      td {
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+      }
+    }
+  }
+}

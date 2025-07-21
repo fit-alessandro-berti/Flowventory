@@ -1,6 +1,7 @@
 import { Component, OnInit, AfterViewInit, ViewChildren, QueryList, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivityStatsOverlayComponent } from '../activity-stats-overlay/activity-stats-overlay.component';
 import { OcelDataService } from '../../services/ocel-data.service';
 import { ViewStateService } from '../../services/view-state.service';
 import { OCELData, OCELEvent, OCELObject } from '../../models/ocel.model';
@@ -19,7 +20,7 @@ interface GraphPatternDisplay extends GraphPattern {
 @Component({
   selector: 'app-graph-patterns',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ActivityStatsOverlayComponent],
   templateUrl: './graph-patterns.component.html',
   styleUrl: './graph-patterns.component.scss'
 })
@@ -44,8 +45,7 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
   private ocelData: OCELData | null = null;
   private elk = new ELK();
 
-  activityStats: { activity: string; count: number; percent: number }[] | null = null;
-  statsTotal = 0;
+  statsObjectIds: string[] | null = null;
 
   constructor(
     private ocelDataService: OcelDataService,
@@ -295,26 +295,11 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
   }
 
   openStats(pattern: GraphPatternDisplay): void {
-    if (!this.ocelData) return;
-    const counts = new Map<string, number>();
-    this.ocelData.events.forEach(ev => {
-      if (ev.relationships.some(r => pattern.objectIds.includes(r.objectId))) {
-        counts.set(ev.type, (counts.get(ev.type) || 0) + 1);
-      }
-    });
-    const total = Array.from(counts.values()).reduce((a, b) => a + b, 0);
-    this.activityStats = Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([activity, count]) => ({
-        activity,
-        count,
-        percent: total ? (count / total) * 100 : 0
-      }));
-    this.statsTotal = total;
+    this.statsObjectIds = pattern.objectIds;
   }
 
   closeStats(): void {
-    this.activityStats = null;
+    this.statsObjectIds = null;
   }
 
   private parsePattern(pattern: GraphPattern): {
