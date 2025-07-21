@@ -125,6 +125,28 @@
     align-items: center;
     gap: 0.25rem;
   }
+
+  .edge-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    .edge-label {
+      font-weight: 600;
+    }
+  }
+
+  .filter-btn {
+    background-color: #28a745;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+
+  .filter-btn:hover {
+    background-color: #1e7e34;
+  }
 }
 
 .decoration-label {

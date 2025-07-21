@@ -25,6 +25,14 @@
       <input type="checkbox" [(ngModel)]="onlyLifecycleEvents" (change)="onLifecycleToggle()">
       Only START/ST CHANGE/END
     </label>
+    <div class="edge-filter" *ngIf="selectedEdge">
+      <span class="edge-label">{{ selectedEdge.source }} -> {{ selectedEdge.target }}</span>
+      <label>Min:</label>
+      <input type="number" [(ngModel)]="filterMin">
+      <label>Max:</label>
+      <input type="number" [(ngModel)]="filterMax">
+      <button class="filter-btn" (click)="applyEdgeFilter()">Filter</button>
+    </div>
   </div>
   
   <div *ngIf="loading" class="loading">Loading graph...</div>

@@ -19,6 +19,8 @@ export interface GraphEdge {
   count: number;
   averageTime?: number; // in milliseconds
   times?: number[]; // to track individual times for averaging
+  /** List of object realizations for this edge and their performance times */
+  realizations?: { objectId: string; time: number }[];
 }
 
 export interface DirectlyFollowsRelation {
