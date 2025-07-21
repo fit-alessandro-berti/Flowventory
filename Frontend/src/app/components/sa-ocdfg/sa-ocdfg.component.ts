@@ -337,7 +337,7 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         sources: [edge.source],
         targets: [edge.target],
         layoutOptions: {
-          'elk.weight': (edge.count || 1) * 5
+          'elk.weight': String((edge.count || 1) * 5)
         }
       }))
     };
