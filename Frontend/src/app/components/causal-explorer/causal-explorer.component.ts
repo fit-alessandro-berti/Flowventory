@@ -15,8 +15,10 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 })
 export class CausalExplorerComponent implements OnInit, AfterViewInit {
   @ViewChild('svgContainer', { static: false }) svgContainer!: ElementRef<SVGSVGElement>;
-  
+
   loading = true;
+  /** which tab is currently active */
+  activeTab: 'graph' | 'legend' = 'graph';
   objectTypes: string[] = [];
   leadObjectType = 'MAT_PLA'; // Default lead object type
 
@@ -117,6 +119,13 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   onRedrawClick(): void {
     if (this.ocelData) {
       this.computeCausalModel();
+    }
+  }
+
+  switchTab(tab: 'graph' | 'legend'): void {
+    this.activeTab = tab;
+    if (tab === 'graph') {
+      setTimeout(() => this.renderGraph());
     }
   }
 

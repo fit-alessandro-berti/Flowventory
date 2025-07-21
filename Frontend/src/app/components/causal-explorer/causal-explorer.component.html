@@ -31,7 +31,13 @@
     <button class="redraw-btn" (click)="onRedrawClick()">Redraw Graph</button>
   </div>
 
-  <div class="legend">
+
+  <div class="tabs" *ngIf="!loading">
+    <button (click)="switchTab('graph')" [class.active]="activeTab==='graph'">Graph</button>
+    <button (click)="switchTab('legend')" [class.active]="activeTab==='legend'">Legend</button>
+  </div>
+
+  <div *ngIf="!loading && activeTab==='legend'" class="legend">
     <div class="legend-item">
       <div class="legend-shape latent"></div>
       <span>Latent Variables</span>
@@ -51,7 +57,7 @@
   
   <div *ngIf="loading" class="loading">Loading structural equation model...</div>
   
-  <div *ngIf="!loading" class="graph-container">
+  <div *ngIf="!loading && activeTab==='graph'" class="graph-container">
     <svg #svgContainer class="graph-svg"></svg>
   </div>
 </div>
