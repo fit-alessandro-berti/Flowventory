@@ -125,6 +125,7 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   switchTab(tab: 'graph' | 'legend'): void {
     this.activeTab = tab;
     if (tab === 'graph') {
+      // wait for DOM to update before rendering
       setTimeout(() => this.renderGraph());
     }
   }
@@ -185,8 +186,10 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       variableNames: correlationData.names
     };
     
-    // Render graph after computing
-    setTimeout(() => this.renderGraph(), 100);
+    // Render graph if visible
+    if (this.activeTab === 'graph') {
+      setTimeout(() => this.renderGraph(), 100);
+    }
   }
 
   private createObservedVariables(variables: CausalVariable[]): void {

@@ -37,27 +37,31 @@
     <button (click)="switchTab('legend')" [class.active]="activeTab==='legend'">Legend</button>
   </div>
 
-  <div *ngIf="!loading && activeTab==='legend'" class="legend">
-    <div class="legend-item">
-      <div class="legend-shape latent"></div>
-      <span>Latent Variables</span>
-    </div>
-    <div class="legend-item">
-      <div class="legend-color complexity"></div>
-      <span>Complexity Indicators</span>
-    </div>
-    <div class="legend-item">
-      <div class="legend-color performance"></div>
-      <span>Performance Indicators</span>
-    </div>
-    <div class="legend-item">
-      <span style="margin-left: 1rem;">→ Path coefficient on edge</span>
-    </div>
+  <div *ngIf="!loading">
+    <ng-container [ngSwitch]="activeTab">
+      <div *ngSwitchCase="'graph'" class="graph-container">
+        <svg #svgContainer class="graph-svg"></svg>
+      </div>
+
+      <div *ngSwitchCase="'legend'" class="legend">
+        <div class="legend-item">
+          <div class="legend-shape latent"></div>
+          <span>Latent Variables</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color complexity"></div>
+          <span>Complexity Indicators</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color performance"></div>
+          <span>Performance Indicators</span>
+        </div>
+        <div class="legend-item">
+          <span style="margin-left: 1rem;">→ Path coefficient on edge</span>
+        </div>
+      </div>
+    </ng-container>
   </div>
-  
+
   <div *ngIf="loading" class="loading">Loading structural equation model...</div>
-  
-  <div *ngIf="!loading && activeTab==='graph'" class="graph-container">
-    <svg #svgContainer class="graph-svg"></svg>
-  </div>
 </div>
