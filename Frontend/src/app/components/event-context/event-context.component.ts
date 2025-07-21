@@ -5,16 +5,26 @@ import { OcelDataService } from '../../services/ocel-data.service';
 import { OCELEvent, OCELData } from '../../models/ocel.model';
 
 interface EventMetrics {
-  beforeUnderOver: number;
-  beforeGoodsIssue: number;
-  beforeGoodsReceipt: number;
-  beforeStChange: number;
-  beforeStockDiff: number;
-  afterUnderOver: number;
-  afterGoodsIssue: number;
-  afterGoodsReceipt: number;
-  afterStChange: number;
-  afterStockDiff: number;
+  beforeUnderOver2: number;
+  beforeGoodsIssue2: number;
+  beforeGoodsReceipt2: number;
+  beforeStChange2: number;
+  beforeStockDiff2: number;
+  beforeUnderOver4: number;
+  beforeGoodsIssue4: number;
+  beforeGoodsReceipt4: number;
+  beforeStChange4: number;
+  beforeStockDiff4: number;
+  afterUnderOver2: number;
+  afterGoodsIssue2: number;
+  afterGoodsReceipt2: number;
+  afterStChange2: number;
+  afterStockDiff2: number;
+  afterUnderOver4: number;
+  afterGoodsIssue4: number;
+  afterGoodsReceipt4: number;
+  afterStChange4: number;
+  afterStockDiff4: number;
 }
 
 @Component({
@@ -34,8 +44,10 @@ export class EventContextComponent implements OnInit {
   private metricsMap = new Map<string, EventMetrics>();
 
   correlations = {
-    before: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 },
-    after: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 }
+    before2: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 },
+    after2: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 },
+    before4: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 },
+    after4: { underOver: 0, goodsIssue: 0, goodsReceipt: 0, stChange: 0, stockDiff: 0 }
   };
 
   constructor(private ocelDataService: OcelDataService) {}
@@ -63,28 +75,51 @@ export class EventContextComponent implements OnInit {
     const prefix = this.selectedActivity;
     const y = events.map(e => (e.type.startsWith(prefix) ? 1 : 0));
 
-    const beforeUnderOver = events.map(e => this.metricsMap.get(e.id)!.beforeUnderOver);
-    const beforeGI = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsIssue);
-    const beforeGR = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsReceipt);
-    const beforeST = events.map(e => this.metricsMap.get(e.id)!.beforeStChange);
-    const beforeDiff = events.map(e => this.metricsMap.get(e.id)!.beforeStockDiff);
-    const afterUnderOver = events.map(e => this.metricsMap.get(e.id)!.afterUnderOver);
-    const afterGI = events.map(e => this.metricsMap.get(e.id)!.afterGoodsIssue);
-    const afterGR = events.map(e => this.metricsMap.get(e.id)!.afterGoodsReceipt);
-    const afterST = events.map(e => this.metricsMap.get(e.id)!.afterStChange);
-    const afterDiff = events.map(e => this.metricsMap.get(e.id)!.afterStockDiff);
+    const b2_underOver = events.map(e => this.metricsMap.get(e.id)!.beforeUnderOver2);
+    const b2_GI = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsIssue2);
+    const b2_GR = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsReceipt2);
+    const b2_ST = events.map(e => this.metricsMap.get(e.id)!.beforeStChange2);
+    const b2_Diff = events.map(e => this.metricsMap.get(e.id)!.beforeStockDiff2);
+    const a2_underOver = events.map(e => this.metricsMap.get(e.id)!.afterUnderOver2);
+    const a2_GI = events.map(e => this.metricsMap.get(e.id)!.afterGoodsIssue2);
+    const a2_GR = events.map(e => this.metricsMap.get(e.id)!.afterGoodsReceipt2);
+    const a2_ST = events.map(e => this.metricsMap.get(e.id)!.afterStChange2);
+    const a2_Diff = events.map(e => this.metricsMap.get(e.id)!.afterStockDiff2);
 
-    this.correlations.before.underOver = this.pearson(beforeUnderOver, y);
-    this.correlations.before.goodsIssue = this.pearson(beforeGI, y);
-    this.correlations.before.goodsReceipt = this.pearson(beforeGR, y);
-    this.correlations.before.stChange = this.pearson(beforeST, y);
-    this.correlations.before.stockDiff = this.pearson(beforeDiff, y);
+    const b4_underOver = events.map(e => this.metricsMap.get(e.id)!.beforeUnderOver4);
+    const b4_GI = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsIssue4);
+    const b4_GR = events.map(e => this.metricsMap.get(e.id)!.beforeGoodsReceipt4);
+    const b4_ST = events.map(e => this.metricsMap.get(e.id)!.beforeStChange4);
+    const b4_Diff = events.map(e => this.metricsMap.get(e.id)!.beforeStockDiff4);
+    const a4_underOver = events.map(e => this.metricsMap.get(e.id)!.afterUnderOver4);
+    const a4_GI = events.map(e => this.metricsMap.get(e.id)!.afterGoodsIssue4);
+    const a4_GR = events.map(e => this.metricsMap.get(e.id)!.afterGoodsReceipt4);
+    const a4_ST = events.map(e => this.metricsMap.get(e.id)!.afterStChange4);
+    const a4_Diff = events.map(e => this.metricsMap.get(e.id)!.afterStockDiff4);
 
-    this.correlations.after.underOver = this.pearson(afterUnderOver, y);
-    this.correlations.after.goodsIssue = this.pearson(afterGI, y);
-    this.correlations.after.goodsReceipt = this.pearson(afterGR, y);
-    this.correlations.after.stChange = this.pearson(afterST, y);
-    this.correlations.after.stockDiff = this.pearson(afterDiff, y);
+    this.correlations.before2.underOver = this.pearson(b2_underOver, y);
+    this.correlations.before2.goodsIssue = this.pearson(b2_GI, y);
+    this.correlations.before2.goodsReceipt = this.pearson(b2_GR, y);
+    this.correlations.before2.stChange = this.pearson(b2_ST, y);
+    this.correlations.before2.stockDiff = this.pearson(b2_Diff, y);
+
+    this.correlations.after2.underOver = this.pearson(a2_underOver, y);
+    this.correlations.after2.goodsIssue = this.pearson(a2_GI, y);
+    this.correlations.after2.goodsReceipt = this.pearson(a2_GR, y);
+    this.correlations.after2.stChange = this.pearson(a2_ST, y);
+    this.correlations.after2.stockDiff = this.pearson(a2_Diff, y);
+
+    this.correlations.before4.underOver = this.pearson(b4_underOver, y);
+    this.correlations.before4.goodsIssue = this.pearson(b4_GI, y);
+    this.correlations.before4.goodsReceipt = this.pearson(b4_GR, y);
+    this.correlations.before4.stChange = this.pearson(b4_ST, y);
+    this.correlations.before4.stockDiff = this.pearson(b4_Diff, y);
+
+    this.correlations.after4.underOver = this.pearson(a4_underOver, y);
+    this.correlations.after4.goodsIssue = this.pearson(a4_GI, y);
+    this.correlations.after4.goodsReceipt = this.pearson(a4_GR, y);
+    this.correlations.after4.stChange = this.pearson(a4_ST, y);
+    this.correlations.after4.stockDiff = this.pearson(a4_Diff, y);
   }
 
   private pearson(x: number[], y: number[]): number {
@@ -115,8 +150,7 @@ export class EventContextComponent implements OnInit {
   private computeMetrics(): void {
     if (!this.ocelData) return;
     const ms2w = 14 * 24 * 60 * 60 * 1000;
-    const typeById = new Map<string, string>();
-    this.ocelData.objects.forEach(o => typeById.set(o.id, o.type));
+    const ms4w = 28 * 24 * 60 * 60 * 1000;
 
     const matObjects = this.ocelData.objects.filter(o => o.type === 'MAT_PLA');
     const eventsByMat = new Map<string, OCELEvent[]>();
@@ -143,61 +177,97 @@ export class EventContextComponent implements OnInit {
       const isGR = list.map(e => e.type.startsWith('Goods Receipt'));
       const isST = list.map(e => e.type.startsWith('ST CHANGE'));
 
-      let start = 0;
-      let countGI = 0, countGR = 0, countST = 0, countStatus = 0;
+      let start2 = 0, start4 = 0;
+      let gi2 = 0, gr2 = 0, st2 = 0, status2 = 0;
+      let gi4 = 0, gr4 = 0, st4 = 0, status4 = 0;
       for (let i = 0; i < list.length; i++) {
         const t = times[i];
-        while (times[start] < t - ms2w) {
-          if (isGI[start]) countGI--;
-          if (isGR[start]) countGR--;
-          if (isST[start]) countST--;
-          if (statusFlags[start]) countStatus--;
-          start++;
+        while (times[start2] < t - ms2w) {
+          if (isGI[start2]) gi2--;
+          if (isGR[start2]) gr2--;
+          if (isST[start2]) st2--;
+          if (statusFlags[start2]) status2--;
+          start2++;
         }
-        const prevIdx = start - 1;
-        const beforeDiff = prevIdx >= 0 ? stockBefore[i] - stockAfter[prevIdx] : 0;
+        while (times[start4] < t - ms4w) {
+          if (isGI[start4]) gi4--;
+          if (isGR[start4]) gr4--;
+          if (isST[start4]) st4--;
+          if (statusFlags[start4]) status4--;
+          start4++;
+        }
+        const prev2 = start2 - 1;
+        const prev4 = start4 - 1;
+        const diff2 = prev2 >= 0 ? stockBefore[i] - stockAfter[prev2] : 0;
+        const diff4 = prev4 >= 0 ? stockBefore[i] - stockAfter[prev4] : 0;
         const metrics: EventMetrics = {
-          beforeUnderOver: countStatus > 0 ? 1 : 0,
-          beforeGoodsIssue: countGI,
-          beforeGoodsReceipt: countGR,
-          beforeStChange: countST,
-          beforeStockDiff: beforeDiff,
-          afterUnderOver: 0,
-          afterGoodsIssue: 0,
-          afterGoodsReceipt: 0,
-          afterStChange: 0,
-          afterStockDiff: 0
+          beforeUnderOver2: status2 > 0 ? 1 : 0,
+          beforeGoodsIssue2: gi2,
+          beforeGoodsReceipt2: gr2,
+          beforeStChange2: st2,
+          beforeStockDiff2: diff2,
+          beforeUnderOver4: status4 > 0 ? 1 : 0,
+          beforeGoodsIssue4: gi4,
+          beforeGoodsReceipt4: gr4,
+          beforeStChange4: st4,
+          beforeStockDiff4: diff4,
+          afterUnderOver2: 0,
+          afterGoodsIssue2: 0,
+          afterGoodsReceipt2: 0,
+          afterStChange2: 0,
+          afterStockDiff2: 0,
+          afterUnderOver4: 0,
+          afterGoodsIssue4: 0,
+          afterGoodsReceipt4: 0,
+          afterStChange4: 0,
+          afterStockDiff4: 0
         };
         this.metricsMap.set(list[i].id, metrics);
-        if (isGI[i]) countGI++;
-        if (isGR[i]) countGR++;
-        if (isST[i]) countST++;
-        if (statusFlags[i]) countStatus++;
+        if (isGI[i]) { gi2++; gi4++; }
+        if (isGR[i]) { gr2++; gr4++; }
+        if (isST[i]) { st2++; st4++; }
+        if (statusFlags[i]) { status2++; status4++; }
       }
 
       // compute future metrics
-      let end = list.length - 1;
-      countGI = 0; countGR = 0; countST = 0; countStatus = 0;
+      let end2 = list.length - 1, end4 = list.length - 1;
+      gi2 = 0; gr2 = 0; st2 = 0; status2 = 0;
+      gi4 = 0; gr4 = 0; st4 = 0; status4 = 0;
       for (let i = list.length - 1; i >= 0; i--) {
         const t = times[i];
-        while (times[end] > t + ms2w) {
-          if (isGI[end]) countGI--;
-          if (isGR[end]) countGR--;
-          if (isST[end]) countST--;
-          if (statusFlags[end]) countStatus--;
-          end--;
+        while (times[end2] > t + ms2w) {
+          if (isGI[end2]) gi2--;
+          if (isGR[end2]) gr2--;
+          if (isST[end2]) st2--;
+          if (statusFlags[end2]) status2--;
+          end2--;
+        }
+        while (times[end4] > t + ms4w) {
+          if (isGI[end4]) gi4--;
+          if (isGR[end4]) gr4--;
+          if (isST[end4]) st4--;
+          if (statusFlags[end4]) status4--;
+          end4--;
         }
         const m = this.metricsMap.get(list[i].id)!;
-        m.afterUnderOver = countStatus > 0 ? 1 : 0;
-        m.afterGoodsIssue = countGI;
-        m.afterGoodsReceipt = countGR;
-        m.afterStChange = countST;
-        const nextIdx = end + 1;
-        m.afterStockDiff = nextIdx < list.length ? stockBefore[nextIdx] - stockAfter[i] : 0;
-        if (isGI[i]) countGI++;
-        if (isGR[i]) countGR++;
-        if (isST[i]) countST++;
-        if (statusFlags[i]) countStatus++;
+        m.afterUnderOver2 = status2 > 0 ? 1 : 0;
+        m.afterGoodsIssue2 = gi2;
+        m.afterGoodsReceipt2 = gr2;
+        m.afterStChange2 = st2;
+        const next2 = end2 + 1;
+        m.afterStockDiff2 = next2 < list.length ? stockBefore[next2] - stockAfter[i] : 0;
+
+        m.afterUnderOver4 = status4 > 0 ? 1 : 0;
+        m.afterGoodsIssue4 = gi4;
+        m.afterGoodsReceipt4 = gr4;
+        m.afterStChange4 = st4;
+        const next4 = end4 + 1;
+        m.afterStockDiff4 = next4 < list.length ? stockBefore[next4] - stockAfter[i] : 0;
+
+        if (isGI[i]) { gi2++; gi4++; }
+        if (isGR[i]) { gr2++; gr4++; }
+        if (isST[i]) { st2++; st4++; }
+        if (statusFlags[i]) { status2++; status4++; }
       }
     });
   }
