@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { OcelDataService } from '../../services/ocel-data.service';
 
 @Component({
   selector: 'app-navigation',
@@ -10,6 +11,16 @@ import { CommonModule } from '@angular/common';
 })
 export class NavigationComponent {
   @Output() itemSelected = new EventEmitter<string>();
+
+  filters: { id: number; objectType: string; objectIds: string[] }[] = [];
+
+  constructor(private ocelDataService: OcelDataService) {
+    this.ocelDataService.filters$.subscribe(f => (this.filters = f));
+  }
+
+  removeFilter(id: number): void {
+    this.ocelDataService.removeFilter(id);
+  }
   
   menuItems = [
     { label: 'Events', route: 'events', icon: '📋' },

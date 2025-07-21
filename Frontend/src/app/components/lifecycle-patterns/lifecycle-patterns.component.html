@@ -15,6 +15,7 @@
 
   <div *ngIf="!loading" class="patterns-list">
     <div *ngFor="let pattern of patterns" class="pattern-item">
+      <input type="checkbox" [(ngModel)]="pattern.selected">
       <span class="support">{{ pattern.support }}</span>
       <span class="sequence">
         <ng-container *ngFor="let act of pattern.sequence; let i = index">
@@ -23,5 +24,6 @@
         </ng-container>
       </span>
     </div>
+    <button class="filter-btn" (click)="applyFilter()">Apply Filter</button>
   </div>
 </div>
