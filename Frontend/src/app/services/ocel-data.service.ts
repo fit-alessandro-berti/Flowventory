@@ -76,7 +76,12 @@ export class OcelDataService {
       return;
     }
 
+    const RELATED_TYPES = new Set(['MAT_PLA', 'PO_ITEM', 'SO_ITEM', 'SUPPLIER']);
+    const idToType = new Map<string, string>();
+    this.baseData.objects.forEach(o => idToType.set(o.id, o.type));
+
     const triggerIds = new Set<string>();
+
     this.filters.forEach(f => {
       f.objectIds.forEach(id => {
         triggerIds.add(id);
@@ -84,8 +89,13 @@ export class OcelDataService {
         this.baseData!.events.forEach(ev => {
           if (ev.relationships.some(r => r.objectId === id)) {
             ev.relationships.forEach(r => {
-              if (r.objectId !== id) related.add(r.objectId);
-              triggerIds.add(r.objectId);
+              if (
+                r.objectId !== id &&
+                RELATED_TYPES.has(idToType.get(r.objectId) || '')
+              ) {
+                related.add(r.objectId);
+                triggerIds.add(r.objectId);
+              }
             });
           }
         });
@@ -97,14 +107,14 @@ export class OcelDataService {
 
     console.log('Applying filtering with objects:', Array.from(triggerIds));
 
-    const filteredEvents = this.baseData.events.filter(ev =>
-      ev.relationships.some(r => triggerIds.has(r.objectId))
-    );
+    const filteredEvents = this.baseData.events
+      .filter(ev => ev.relationships.some(r => triggerIds.has(r.objectId)))
+      .map(ev => ({
+        ...ev,
+        relationships: ev.relationships.filter(r => triggerIds.has(r.objectId))
+      }));
 
-    const finalIds = new Set<string>();
-    filteredEvents.forEach(ev => ev.relationships.forEach(r => finalIds.add(r.objectId)));
-
-    const filteredObjects = this.baseData.objects.filter(obj => finalIds.has(obj.id));
+    const filteredObjects = this.baseData.objects.filter(obj => triggerIds.has(obj.id));
 
     const filteredData: OCELData = {
       ...this.baseData,
