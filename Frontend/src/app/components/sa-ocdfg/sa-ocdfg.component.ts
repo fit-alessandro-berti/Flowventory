@@ -206,11 +206,13 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
           isEnd: true
         };
       } else {
+        const isHex = nodeId.startsWith('START') || nodeId.startsWith('ST CHANGE');
         return {
           id: nodeId,
           label: nodeId,
           objectType: 'activity',
-          color: '#ffffff'
+          color: isHex ? '#d3d3d3' : '#ffffff',
+          isHexagon: isHex
         };
       }
     });
@@ -496,6 +498,26 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
         circle.setAttribute('stroke-width', '2');
         circle.setAttribute('class', 'node-shape');
         nodeElement.appendChild(circle);
+      } else if (graphNode.isHexagon) {
+        // Draw hexagon for special activity nodes
+        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        const offset = node.width * 0.25;
+        const points = [
+          [node.x + offset, node.y],
+          [node.x + node.width - offset, node.y],
+          [node.x + node.width, node.y + node.height / 2],
+          [node.x + node.width - offset, node.y + node.height],
+          [node.x + offset, node.y + node.height],
+          [node.x, node.y + node.height / 2]
+        ]
+          .map(p => p.join(' '))
+          .join(', ');
+        polygon.setAttribute('points', points);
+        polygon.setAttribute('fill', graphNode.color);
+        polygon.setAttribute('stroke', '#333');
+        polygon.setAttribute('stroke-width', '2');
+        polygon.setAttribute('class', 'node-shape');
+        nodeElement.appendChild(polygon);
       } else {
         // Draw rectangle for activity nodes
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');

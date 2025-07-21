@@ -3,6 +3,8 @@ export interface GraphNode {
   label: string;
   objectType: string;
   color: string;
+  /** Set to true to render this node as a hexagon */
+  isHexagon?: boolean;
   isStart?: boolean;
   isEnd?: boolean;
 }
