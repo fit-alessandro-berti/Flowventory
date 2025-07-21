@@ -29,7 +29,6 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
   /** Maximum number of patterns/candidates considered during mining */
   maxCandidatePatterns = 3000;
   minSupportPercent = 10;
-  showProblematicOnly = true;
   includeE2OEdges = true;
   dfSequenceLength = 2;
   patterns: GraphPatternDisplay[] = [];
@@ -141,9 +140,6 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
       });
 
       const transaction = Array.from(new Set(edges));
-      if (this.showProblematicOnly && !transaction.some(e => e.includes('ST CHANGE'))) {
-        return;
-      }
       transactions.push(transaction);
       this.edgesByObject.set(mat.id, transaction);
     });
@@ -153,10 +149,7 @@ export class GraphPatternsComponent implements OnInit, AfterViewInit {
       Math.ceil(transactions.length * (this.minSupportPercent / 100))
     );
     const mined = this.apriori(transactions, minSupport);
-    let filtered = mined.filter(p => p.edges.length >= Math.max(1, this.minPatternLength));
-    if (this.showProblematicOnly) {
-      filtered = filtered.filter(p => p.edges.some(e => e.includes('ST CHANGE')));
-    }
+    const filtered = mined.filter(p => p.edges.length >= Math.max(1, this.minPatternLength));
     const sorted = filtered.sort((a, b) => {
       if (b.support !== a.support) {
         return b.support - a.support;

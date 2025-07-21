@@ -12,10 +12,6 @@
       <input type="checkbox" [(ngModel)]="includeE2OEdges" (change)="onPatternSettingsUpdate()">
       Include e2o edges
     </label>
-    <label class="checkbox">
-      <input type="checkbox" [(ngModel)]="showProblematicOnly" (change)="onPatternSettingsUpdate()">
-      Problematic only
-    </label>
     <button class="update-btn" (click)="onPatternSettingsUpdate()">Update</button>
     <button class="filter-btn" (click)="applyFilter()">Filter</button>
   </div>
