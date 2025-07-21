@@ -9,12 +9,14 @@
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
     <button class="update-btn" (click)="onPatternSettingsUpdate()">Update</button>
+    <button class="filter-btn" (click)="applyFilter()">Filter</button>
   </div>
 
   <div *ngIf="loading" class="loading">Computing patterns...</div>
 
   <div *ngIf="!loading" class="patterns-list">
     <div *ngFor="let pattern of patterns" class="pattern-item">
+      <input type="checkbox" [(ngModel)]="pattern.selected">
       <span class="support">{{ pattern.support }}</span>
       <span class="sequence">
         <ng-container *ngFor="let act of pattern.sequence; let i = index">

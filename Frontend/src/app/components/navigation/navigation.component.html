@@ -1,7 +1,7 @@
 <nav class="navigation-panel">
   <h2 class="nav-title">OCEL Explorer</h2>
   <ul class="nav-list">
-    <li *ngFor="let item of menuItems" 
+    <li *ngFor="let item of menuItems"
         class="nav-item"
         [class.active]="activeItem === item.route"
         (click)="selectItem(item.route)">
@@ -9,4 +9,19 @@
       <span class="nav-label">{{ item.label }}</span>
     </li>
   </ul>
+
+  <div class="filters" *ngIf="filters.length > 0">
+    <h3>Filters</h3>
+    <ul class="filter-list">
+      <li *ngFor="let f of filters">
+        <span>{{ f.label }} - {{ f.objectType }}</span>
+        <button (click)="removeFilter(f.id)">✕</button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="stats">
+    <span>{{ eventCount }} events</span>
+    <span>{{ objectCount }} objects</span>
+  </div>
 </nav>

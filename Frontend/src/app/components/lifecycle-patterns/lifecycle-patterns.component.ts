@@ -11,6 +11,8 @@ interface PatternResult {
 
 interface PatternDisplay extends PatternResult {
   immediate: boolean[];
+  objectIds: string[];
+  selected?: boolean;
 }
 
 @Component({
@@ -29,6 +31,7 @@ export class LifecyclePatternsComponent implements OnInit {
   maxPatterns = 50;
 
   private ocelData: OCELData | null = null;
+  private sequencesByObject = new Map<string, string[]>();
 
   constructor(private ocelDataService: OcelDataService) {}
 
@@ -62,6 +65,7 @@ export class LifecyclePatternsComponent implements OnInit {
     if (!this.ocelData) return;
 
     const sequences: string[][] = [];
+    this.sequencesByObject.clear();
     const leadObjects = this.ocelData.objects.filter(o => o.type === this.leadObjectType);
 
     leadObjects.forEach(obj => {
@@ -69,7 +73,9 @@ export class LifecyclePatternsComponent implements OnInit {
         .filter(e => e.relationships.some(r => r.objectId === obj.id))
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
       if (objEvents.length > 0) {
-        sequences.push(objEvents.map(e => e.type));
+        const seq = objEvents.map(e => e.type);
+        sequences.push(seq);
+        this.sequencesByObject.set(obj.id, seq);
       }
     });
 
@@ -86,7 +92,9 @@ export class LifecyclePatternsComponent implements OnInit {
     const limit = Math.max(1, this.maxPatterns);
     this.patterns = sorted.slice(0, limit).map(p => ({
       ...p,
-      immediate: this.getImmediateRelations(p.sequence, sequences)
+      immediate: this.getImmediateRelations(p.sequence, sequences),
+      objectIds: this.getObjectsForPattern(p.sequence),
+      selected: false
     }));
   }
 
@@ -148,6 +156,35 @@ export class LifecyclePatternsComponent implements OnInit {
         }
       }
     });
+  }
+
+  private getObjectsForPattern(pattern: string[]): string[] {
+    const ids: string[] = [];
+    this.sequencesByObject.forEach((seq, id) => {
+      if (this.isSubsequence(pattern, seq)) {
+        ids.push(id);
+      }
+    });
+    return ids;
+  }
+
+  private isSubsequence(pattern: string[], sequence: string[]): boolean {
+    let idx = 0;
+    for (const item of sequence) {
+      if (item === pattern[idx]) {
+        idx++;
+        if (idx === pattern.length) return true;
+      }
+    }
+    return false;
+  }
+
+  applyFilter(): void {
+    const selected = this.patterns.filter(p => p.selected);
+    if (selected.length === 0) return;
+    const ids = new Set<string>();
+    selected.forEach(p => p.objectIds.forEach(id => ids.add(id)));
+    this.ocelDataService.addFilter('Lifecycle Patterns Filter', this.leadObjectType, Array.from(ids));
   }
 }
 
