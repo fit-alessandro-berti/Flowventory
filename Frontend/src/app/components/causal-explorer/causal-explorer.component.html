@@ -31,24 +31,6 @@
     <button class="redraw-btn" (click)="onRedrawClick()">Redraw Graph</button>
   </div>
 
-  <div class="legend">
-    <div class="legend-item">
-      <div class="legend-shape latent"></div>
-      <span>Latent Variables</span>
-    </div>
-    <div class="legend-item">
-      <div class="legend-color complexity"></div>
-      <span>Complexity Indicators</span>
-    </div>
-    <div class="legend-item">
-      <div class="legend-color performance"></div>
-      <span>Performance Indicators</span>
-    </div>
-    <div class="legend-item">
-      <span style="margin-left: 1rem;">→ Path coefficient on edge</span>
-    </div>
-  </div>
-  
   <div *ngIf="loading" class="loading">Loading structural equation model...</div>
   
   <div *ngIf="!loading" class="graph-container">

@@ -52,55 +52,6 @@
   }
 }
 
-.legend {
-  display: flex;
-  gap: 2rem;
-  padding: 1rem;
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1rem;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  
-  .legend-color {
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
-    border: 2px solid;
-    
-    &.complexity {
-      background-color: #e3f2fd;
-      border-color: #1976d2;
-    }
-    
-    &.performance {
-      background-color: #f3e5f5;
-      border-color: #7b1fa2;
-    }
-  }
-  
-  .legend-shape {
-    width: 30px;
-    height: 20px;
-    border-radius: 50%;
-    border: 2px solid #333;
-    background-color: #f0f0f0;
-    
-    &.latent {
-      border-radius: 50%;
-    }
-  }
-  
-  span {
-    font-size: 0.9rem;
-    color: #212529;
-  }
-}
 
 .loading {
   text-align: center;
