@@ -2,6 +2,7 @@ import { Component, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angula
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OcelDataService } from '../../services/ocel-data.service';
+import { ViewStateService } from '../../services/view-state.service';
 import { OCELData, OCELEvent, OCELObject } from '../../models/ocel.model';
 import { GraphNode, GraphEdge, DirectlyFollowsRelation } from '../../models/graph.model';
 import ELK from 'elkjs/lib/elk.bundled.js';
@@ -36,8 +37,14 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
   
   private hoveredEdgeId: string | null = null;
   private hoveredNodeId: string | null = null;
+  selectedEdge: GraphEdge | null = null;
+  filterMin = 0;
+  filterMax = 0;
 
-  constructor(private ocelDataService: OcelDataService) {}
+  constructor(
+    private ocelDataService: OcelDataService,
+    private viewState: ViewStateService
+  ) {}
 
   ngOnInit(): void {
     this.ocelDataService.ocelData$.subscribe(data => {
@@ -148,12 +155,14 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
               objectType: object.type,
               color: this.objectTypeColors[object.type],
               count: 1,
-              times: [0] // 0 seconds for start edges
+              times: [0],
+              realizations: [{ objectId: object.id, time: 0 }]
             });
           } else {
             const edge = edgeMap.get(edgeKey)!;
             edge.count++;
-            edge.times!.push(0); // Always 0 for start edges
+            edge.times!.push(0);
+            edge.realizations!.push({ objectId: object.id, time: 0 });
           }
         }
 
@@ -170,12 +179,14 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
               objectType: object.type,
               color: this.objectTypeColors[object.type],
               count: 1,
-              times: [timeDiff]
+              times: [timeDiff],
+              realizations: [{ objectId: object.id, time: timeDiff }]
             });
           } else {
             const edge = edgeMap.get(edgeKey)!;
             edge.count++;
             edge.times!.push(timeDiff);
+            edge.realizations!.push({ objectId: object.id, time: timeDiff });
           }
         } else {
           // Connect last activity to end
@@ -190,12 +201,14 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
               objectType: object.type,
               color: this.objectTypeColors[object.type],
               count: 1,
-              times: [0] // 0 seconds for end edges
+              times: [0],
+              realizations: [{ objectId: object.id, time: 0 }]
             });
           } else {
             const edge = edgeMap.get(edgeKey)!;
             edge.count++;
-            edge.times!.push(0); // Always 0 for end edges
+            edge.times!.push(0);
+            edge.realizations!.push({ objectId: object.id, time: 0 });
           }
         }
       }
@@ -442,6 +455,8 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
       edgeElement.addEventListener('mouseenter', (event: MouseEvent) => this.onEdgeHover(graphEdge.id, event));
       edgeElement.addEventListener('mousemove', (event: MouseEvent) => this.updateLabelPosition(graphEdge.id, event));
       edgeElement.addEventListener('mouseleave', () => this.onEdgeLeave());
+      edgeElement.addEventListener('click', () => this.onEdgeClick(graphEdge.id));
+      edgeElement.addEventListener('click', () => this.onEdgeClick(graphEdge.id));
       
       edgeGroup.appendChild(edgeElement);
     });
@@ -723,6 +738,28 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     if (tooltip) {
       tooltip.style.display = 'none';
     }
+  }
+
+  private onEdgeClick(edgeId: string): void {
+    const edge = this.edges.find(e => e.id === edgeId);
+    if (!edge || !edge.realizations) return;
+    this.selectedEdge = edge;
+    const times = edge.realizations.map(r => r.time);
+    this.filterMin = Math.min(...times);
+    this.filterMax = Math.max(...times);
+  }
+
+  applyEdgeFilter(): void {
+    if (!this.selectedEdge || !this.selectedEdge.realizations) return;
+    const ids = this.selectedEdge.realizations
+      .filter(r => r.time >= this.filterMin && r.time <= this.filterMax)
+      .map(r => r.objectId);
+    const uniqueIds = Array.from(new Set(ids));
+    if (uniqueIds.length === 0) return;
+    const label = `${this.selectedEdge.source} -> ${this.selectedEdge.target}`;
+    this.ocelDataService.addFilter(label, this.selectedEdge.objectType, uniqueIds);
+    this.viewState.setView('sa-ocdfg');
+    this.selectedEdge = null;
   }
 
   private onNodeHover(nodeId: string): void {
