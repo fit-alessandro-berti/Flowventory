@@ -15,6 +15,9 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 })
 export class CausalExplorerComponent implements OnInit, AfterViewInit {
   @ViewChild('svgContainer', { static: false }) svgContainer!: ElementRef<SVGSVGElement>;
+  @ViewChild('matrixSvg', { static: false }) matrixSvgContainer!: ElementRef<SVGSVGElement>;
+
+  activeTab = 'graph';
   
   loading = true;
   objectTypes: string[] = [];
@@ -84,6 +87,7 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     if (!this.loading) {
       this.renderGraph();
+      this.renderCorrelationMatrix();
     }
   }
 
@@ -111,6 +115,15 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       }
     } else {
       this.selectedLatentVariables = this.selectedLatentVariables.filter(v => v !== id);
+    }
+  }
+
+  setActiveTab(tab: 'graph' | 'matrix'): void {
+    this.activeTab = tab;
+    if (tab === 'graph') {
+      setTimeout(() => this.renderGraph());
+    } else {
+      setTimeout(() => this.renderCorrelationMatrix());
     }
   }
 
@@ -176,8 +189,11 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
       variableNames: correlationData.names
     };
     
-    // Render graph after computing
-    setTimeout(() => this.renderGraph(), 100);
+    // Render visuals after computing
+    setTimeout(() => {
+      this.renderGraph();
+      this.renderCorrelationMatrix();
+    }, 100);
   }
 
   private createObservedVariables(variables: CausalVariable[]): void {
@@ -801,10 +817,7 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     
     svg.appendChild(nodeGroup);
 
-    // Add correlation matrix display if available
-    if (this.causalModel.correlationMatrix && this.causalModel.variableNames) {
-      this.addCorrelationMatrix(svg, width, height);
-    }
+    // Correlation matrix is rendered separately
   }
 
   private addCorrelationMatrix(svg: SVGSVGElement, totalWidth: number, totalHeight: number): void {
@@ -889,6 +902,25 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
     });
     
     svg.appendChild(matrixGroup);
+  }
+
+  private renderCorrelationMatrix(): void {
+    if (!this.matrixSvgContainer || !this.causalModel.correlationMatrix) return;
+
+    const svg = this.matrixSvgContainer.nativeElement;
+    svg.innerHTML = '';
+
+    const names = this.causalModel.variableNames!;
+    const cellSize = 30;
+    const matrixSize = names.length * cellSize;
+    const width = matrixSize + 100;
+    const height = matrixSize + 70;
+
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('width', width.toString());
+    svg.setAttribute('height', height.toString());
+
+    this.addCorrelationMatrix(svg, width, height);
   }
   
   private truncateLabel(label: string): string {
