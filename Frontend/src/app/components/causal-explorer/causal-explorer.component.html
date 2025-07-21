@@ -31,7 +31,18 @@
     <button class="redraw-btn" (click)="onRedrawClick()">Redraw Graph</button>
   </div>
 
-  <div class="legend">
+  <div class="tabs" *ngIf="!loading">
+    <button (click)="activeTab='graph'" [class.active]="activeTab==='graph'">Graph</button>
+    <button (click)="activeTab='legend'" [class.active]="activeTab==='legend'">Legend</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Loading structural equation model...</div>
+
+  <div *ngIf="!loading && activeTab==='graph'" class="graph-container">
+    <svg #svgContainer class="graph-svg"></svg>
+  </div>
+
+  <div *ngIf="!loading && activeTab==='legend'" class="legend">
     <div class="legend-item">
       <div class="legend-shape latent"></div>
       <span>Latent Variables</span>
@@ -47,11 +58,5 @@
     <div class="legend-item">
       <span style="margin-left: 1rem;">→ Path coefficient on edge</span>
     </div>
-  </div>
-  
-  <div *ngIf="loading" class="loading">Loading structural equation model...</div>
-  
-  <div *ngIf="!loading" class="graph-container">
-    <svg #svgContainer class="graph-svg"></svg>
   </div>
 </div>

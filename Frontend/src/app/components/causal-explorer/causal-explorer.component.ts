@@ -19,6 +19,7 @@ export class CausalExplorerComponent implements OnInit, AfterViewInit {
   loading = true;
   objectTypes: string[] = [];
   leadObjectType = 'MAT_PLA'; // Default lead object type
+  activeTab: 'graph' | 'legend' = 'graph';
 
   /** Lists of available variables so the user can select which ones to display */
   /** Inventory-specific observed metrics */
