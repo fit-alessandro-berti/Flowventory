@@ -9,8 +9,12 @@
     <label for="maxPatterns"># Patterns:</label>
     <input id="maxPatterns" type="number" min="1" [(ngModel)]="maxPatterns">
     <label class="checkbox">
-      <input type="checkbox" [(ngModel)]="showProblematicOnly" (change)="onPatternSettingsUpdate()">
-      Problematic only
+      <input type="checkbox" [(ngModel)]="prefilterProblematic" (change)="onPatternSettingsUpdate()">
+      Prefilter ST CHANGE
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" [(ngModel)]="postfilterProblematic" (change)="onPatternSettingsUpdate()">
+      Post-filter ST CHANGE
     </label>
     <button class="update-btn" (click)="onPatternSettingsUpdate()">Update</button>
     <button class="filter-btn" (click)="applyFilter()">Filter</button>
