@@ -1,5 +1,6 @@
 import { Component, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { OcelDataService } from '../../services/ocel-data.service';
 import { OCELData, OCELEvent, OCELObject } from '../../models/ocel.model';
 import { GraphNode, GraphEdge, DirectlyFollowsRelation } from '../../models/graph.model';
@@ -8,7 +9,7 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 @Component({
   selector: 'app-sa-ocdfg',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './sa-ocdfg.component.html',
   styleUrl: './sa-ocdfg.component.scss'
 })
@@ -31,6 +32,7 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
   
   decorationOptions = ['Frequency', 'Average Time'];
   selectedDecoration = 'Frequency';
+  onlyLifecycleEvents = false;
   
   private hoveredEdgeId: string | null = null;
   private hoveredNodeId: string | null = null;
@@ -82,16 +84,30 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
     setTimeout(() => this.renderGraph(), 100);
   }
 
+  onLifecycleToggle(): void {
+    if (this.ocelData) {
+      this.computeDirectlyFollowsGraph(this.ocelData);
+    }
+  }
+
   private computeDirectlyFollowsGraph(data: OCELData): void {
     // Assign colors to object types
     data.objectTypes.forEach((type, index) => {
       this.objectTypeColors[type.name] = this.colorPalette[index % this.colorPalette.length];
     });
 
+    const relevantEvents = this.onlyLifecycleEvents
+      ? data.events.filter(ev =>
+          ev.type.startsWith('START') ||
+          ev.type.startsWith('ST CHANGE') ||
+          ev.type.startsWith('END ')
+        )
+      : data.events;
+
     // Group events by object
     const eventsByObject: { [objectId: string]: OCELEvent[] } = {};
-    
-    data.events.forEach(event => {
+
+    relevantEvents.forEach(event => {
       event.relationships.forEach(rel => {
         if (!eventsByObject[rel.objectId]) {
           eventsByObject[rel.objectId] = [];
@@ -206,7 +222,9 @@ export class SaOcdfgComponent implements OnInit, AfterViewInit {
           isEnd: true
         };
       } else {
-        const isHex = nodeId.startsWith('START') || nodeId.startsWith('ST CHANGE');
+        const isHex = nodeId.startsWith('START') ||
+                      nodeId.startsWith('ST CHANGE') ||
+                      nodeId.startsWith('END ');
         return {
           id: nodeId,
           label: nodeId,
