@@ -1,0 +1,32 @@
+<div class="variants-explorer-container">
+  <div class="controls">
+    <label for="dfLength">DF Seq Length:</label>
+    <input id="dfLength" type="number" min="2" [(ngModel)]="dfSequenceLength">
+    <label for="statusFilter">Status:</label>
+    <select id="statusFilter" [(ngModel)]="selectedStatus" (change)="onSettingsUpdate()">
+      <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+    </select>
+    <label class="checkbox">
+      <input type="checkbox" [(ngModel)]="includeE2OEdges" (change)="onSettingsUpdate()">
+      Include e2o edges
+    </label>
+    <button class="update-btn" (click)="onSettingsUpdate()">Update</button>
+    <button class="filter-btn" (click)="applyFilter()">Filter</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Computing variants...</div>
+
+  <div *ngIf="!loading" class="patterns-list">
+    <div *ngFor="let variant of variants" class="pattern-item" (click)="openStats(variant)">
+      <input type="checkbox" [(ngModel)]="variant.selected" (click)="$event.stopPropagation()">
+      <span class="support">{{ variant.objectIds.length }}</span>
+      <svg #svgContainer class="pattern-svg"></svg>
+    </div>
+  </div>
+
+  <app-activity-stats-overlay
+    *ngIf="statsObjectIds"
+    [objectIds]="statsObjectIds"
+    (close)="closeStats()"
+  ></app-activity-stats-overlay>
+</div>
