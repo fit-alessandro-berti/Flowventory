@@ -39,5 +39,21 @@
         border: 1px solid #ccc;
       }
     }
+
+    .tabs {
+      margin-bottom: 1rem;
+
+      button {
+        margin-right: 0.5rem;
+        padding: 0.5rem 1rem;
+        border: none;
+        background-color: #e9ecef;
+        cursor: pointer;
+        &.active {
+          background-color: #007bff;
+          color: #fff;
+        }
+      }
+    }
   }
 }

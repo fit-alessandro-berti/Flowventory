@@ -1,7 +1,13 @@
 <div class="overlay">
   <div class="overlay-content">
     <button class="close-btn" (click)="onClose()">✖</button>
-    <table class="stats-table">
+
+    <div class="tabs">
+      <button (click)="activeTab='activities'" [class.active]="activeTab==='activities'">Activities</button>
+      <button (click)="activeTab='suppliers'" [class.active]="activeTab==='suppliers'">Suppliers</button>
+    </div>
+
+    <table class="stats-table" *ngIf="activeTab==='activities'">
       <tr>
         <th>Activity</th>
         <th>Count</th>
@@ -9,6 +15,19 @@
       </tr>
       <tr *ngFor="let s of activityStats">
         <td>{{ s.activity }}</td>
+        <td>{{ s.count }}</td>
+        <td>{{ s.percent | number:'1.0-2' }}%</td>
+      </tr>
+    </table>
+
+    <table class="stats-table" *ngIf="activeTab==='suppliers'">
+      <tr>
+        <th>Supplier</th>
+        <th>Count</th>
+        <th>%</th>
+      </tr>
+      <tr *ngFor="let s of supplierStats">
+        <td>{{ s.supplier }}</td>
         <td>{{ s.count }}</td>
         <td>{{ s.percent | number:'1.0-2' }}%</td>
       </tr>

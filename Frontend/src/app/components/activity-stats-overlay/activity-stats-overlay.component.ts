@@ -16,6 +16,9 @@ export class ActivityStatsOverlayComponent implements OnInit, OnChanges {
 
   activityStats: { activity: string; count: number; percent: number }[] = [];
   total = 0;
+  supplierStats: { supplier: string; count: number; percent: number }[] = [];
+  supplierTotal = 0;
+  activeTab: 'activities' | 'suppliers' = 'activities';
 
   private ocelData: OCELData | null = null;
 
@@ -40,14 +43,31 @@ export class ActivityStatsOverlayComponent implements OnInit, OnChanges {
     if (!this.ocelData || !this.objectIds || this.objectIds.length === 0) {
       this.activityStats = [];
       this.total = 0;
+      this.supplierStats = [];
+      this.supplierTotal = 0;
       return;
     }
+
     const counts = new Map<string, number>();
+    const supplierCounts = new Map<string, number>();
+    const typeMap = new Map<string, string>();
+    this.ocelData.objects.forEach(o => typeMap.set(o.id, o.type));
+
     this.ocelData.events.forEach(ev => {
       if (ev.relationships.some(r => this.objectIds!.includes(r.objectId))) {
         counts.set(ev.type, (counts.get(ev.type) || 0) + 1);
+        const suppliers = new Set<string>();
+        ev.relationships.forEach(rel => {
+          if (typeMap.get(rel.objectId) === 'SUPPLIER') {
+            suppliers.add(rel.objectId);
+          }
+        });
+        suppliers.forEach(id => {
+          supplierCounts.set(id, (supplierCounts.get(id) || 0) + 1);
+        });
       }
     });
+
     const total = Array.from(counts.values()).reduce((a, b) => a + b, 0);
     this.activityStats = Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
@@ -57,6 +77,19 @@ export class ActivityStatsOverlayComponent implements OnInit, OnChanges {
         percent: total ? (count / total) * 100 : 0
       }));
     this.total = total;
+
+    const supplierTotal = Array.from(supplierCounts.values()).reduce(
+      (a, b) => a + b,
+      0
+    );
+    this.supplierStats = Array.from(supplierCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([supplier, count]) => ({
+        supplier,
+        count,
+        percent: supplierTotal ? (count / supplierTotal) * 100 : 0
+      }));
+    this.supplierTotal = supplierTotal;
   }
 
   onClose(): void {
