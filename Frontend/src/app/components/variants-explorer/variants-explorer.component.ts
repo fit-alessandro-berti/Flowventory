@@ -84,9 +84,29 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
     const variantMap = new Map<string, Variant>();
 
     leadObjects.forEach(mat => {
-      const allEvents = (eventsIndex.get(mat.id) || [])
-        .slice()
-        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+      const visitedObjects = new Set<string>([mat.id]);
+      const eventMap = new Map<string, OCELEvent>();
+      const queue: string[] = [mat.id];
+
+      while (queue.length) {
+        const oid = queue.shift()!;
+        const relatedEvents = eventsIndex.get(oid) || [];
+        relatedEvents.forEach(ev => {
+          if (!eventMap.has(ev.id)) {
+            eventMap.set(ev.id, ev);
+            ev.relationships.forEach(rel => {
+              if (!visitedObjects.has(rel.objectId)) {
+                visitedObjects.add(rel.objectId);
+                queue.push(rel.objectId);
+              }
+            });
+          }
+        });
+      }
+
+      const allEvents = Array.from(eventMap.values()).sort(
+        (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+      );
 
       const segments: OCELEvent[][] = [];
       if (this.selectedStatus === 'All') {
@@ -94,7 +114,9 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
       } else {
         let current: OCELEvent[] = [];
         allEvents.forEach(ev => {
-          const st = String(ev.attributes.find(a => statusAttrs.includes(a.name))?.value || '');
+          const st = String(
+            ev.attributes.find(a => statusAttrs.includes(a.name))?.value || ''
+          );
           if (st === this.selectedStatus) {
             current.push(ev);
           } else {
@@ -159,6 +181,14 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
           }
         });
 
+        for (let i = 0; i <= segEvents.length - this.dfSequenceLength; i++) {
+          const seq = segEvents
+            .slice(i, i + this.dfSequenceLength)
+            .map(e => e.type)
+            .join('-->');
+          edges.push(`${seq}(df_GLOBAL)`);
+        }
+
         const transaction = Array.from(new Set(edges));
         const key = transaction.slice().sort().join('|');
         if (!variantMap.has(key)) {
@@ -205,15 +235,15 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
       if (t.startsWith('df_')) {
         const objType = t.replace('df_', '');
         const [src, tgt] = base.split('-->');
-        const srcId = `${src}_${objType}`;
-        const tgtId = `${tgt}_${objType}`;
+        const srcId = objType === 'GLOBAL' ? src : `${src}_${objType}`;
+        const tgtId = objType === 'GLOBAL' ? tgt : `${tgt}_${objType}`;
         nodesMap.set(srcId, { id: srcId, type: 'event' });
         nodesMap.set(tgtId, { id: tgtId, type: 'event' });
         edges.push({
           id: e,
           source: srcId,
           target: tgtId,
-          label: objType
+          label: objType === 'GLOBAL' ? '' : objType
         });
       } else if (t === 'e2o') {
         const [evType, objLabel] = base.split('-->');
