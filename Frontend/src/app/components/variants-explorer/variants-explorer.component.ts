@@ -8,7 +8,7 @@ import {
   ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+  import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ActivityStatsOverlayComponent } from '../activity-stats-overlay/activity-stats-overlay.component';
 import { OcelDataService } from '../../services/ocel-data.service';
@@ -65,13 +65,12 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   ngAfterViewInit(): void {
-    // Render when DOM nodes (svgs) are available or change
+    // Re-render when the DOM inserts/removes SVGs
     this.viewChangesSub = this.svgContainers.changes.subscribe(() => {
       this.renderGraphs();
     });
 
     if (!this.loading) {
-      // If data already present by now, render once
       this.renderGraphs();
     }
   }
@@ -179,7 +178,6 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
               const obj = objectIndex.get(rel.objectId);
               if (!obj) continue;
               if (!allowedE2O.has(obj.type)) continue;
-              // Event-to-objectType edge, not per-object instance
               edges.push(`${ev.type}-->${obj.type}(e2o)`);
             }
           }
@@ -238,7 +236,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
       (a, b) => b.objectIds.length - a.objectIds.length
     );
 
-    // Draw once the DOM updates with new svgs
+    // Draw once the DOM updates with new table rows/SVGs
     setTimeout(() => this.renderGraphs(), 0);
   }
 
@@ -260,11 +258,10 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   trackByVariant(index: number, v: Variant): string {
-    // A stable key for the variant card
     return v.edges.slice().sort().join('|');
   }
 
-  /** Parses a variant’s canonical features into a graph model for drawing */
+  /** Parse a variant’s features into a graph model for drawing */
   private parseVariant(variant: Variant): {
     nodes: { id: string; type: 'event' | 'object' }[];
     edges: { id: string; source: string; target: string; label: string }[];
@@ -273,25 +270,22 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
     const edges: { id: string; source: string; target: string; label: string }[] = [];
 
     for (const feat of variant.edges) {
-      // robust split "base(type)"
       const openIdx = feat.lastIndexOf('(');
       if (openIdx === -1 || !feat.endsWith(')')) continue;
       const base = feat.slice(0, openIdx);
-      const t = feat.slice(openIdx + 1, -1); // drop ")"
+      const t = feat.slice(openIdx + 1, -1);
 
       if (t.startsWith('df_')) {
-        const objType = t.substring(3); // after "df_"
+        const objType = t.substring(3);
         const steps = base.split('-->');
         // Expand n-gram into pairwise edges for visualization
         for (let i = 0; i < steps.length - 1; i++) {
           const src = objType === 'GLOBAL' ? steps[i] : `${steps[i]}_${objType}`;
           const tgt = objType === 'GLOBAL' ? steps[i + 1] : `${steps[i + 1]}_${objType}`;
-
           nodesMap.set(src, { id: src, type: 'event' });
           nodesMap.set(tgt, { id: tgt, type: 'event' });
-
           edges.push({
-            id: `${feat}#${i}`, // ensure unique id per expanded edge
+            id: `${feat}#${i}`,
             source: src,
             target: tgt,
             label: objType === 'GLOBAL' ? '' : objType
@@ -303,7 +297,6 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
         if (!evType || !objType) continue;
 
         const evId = `${evType}_${objType}`;
-
         nodesMap.set(evId, { id: evId, type: 'event' });
         nodesMap.set(objType, { id: objType, type: 'object' });
 
@@ -337,7 +330,6 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
 
     const nodesWithMetrics = graph.nodes.map(n => ({
       ...n,
-      // show only the event name before "_TYPE" to keep cards compact
       lines: [n.type === 'event' ? n.id.replace(/_.*/, '') : n.id],
       width: 92,
       height: 44
@@ -383,9 +375,12 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
     const padding = 20;
     const width = layout.width + 2 * padding;
     const height = layout.height + 2 * padding;
+
+    // Use a responsive SVG that scales to the table cell
     svg.setAttribute('viewBox', `${-padding} ${-padding} ${width} ${height}`);
-    svg.setAttribute('width', `${width}`);
-    svg.setAttribute('height', `${height}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
 
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
@@ -405,8 +400,9 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
     const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     layout.edges.forEach((edge: any) => {
+      const section = edge.sections?.[0];
+      if (!section) return;
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      const section = edge.sections[0];
       const points = section.bendPoints || [];
       const start = section.startPoint;
       const end = section.endPoint;

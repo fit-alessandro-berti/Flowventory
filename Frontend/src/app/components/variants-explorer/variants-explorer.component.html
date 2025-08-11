@@ -19,17 +19,33 @@
 
   <div *ngIf="loading" class="loading">Computing variants...</div>
 
-  <div *ngIf="!loading" class="patterns-list">
-    <div
-      *ngFor="let variant of variants; trackBy: trackByVariant"
-      class="pattern-item"
-      (click)="openStats(variant)"
-    >
-      <input type="checkbox" [(ngModel)]="variant.selected" (click)="$event.stopPropagation()">
-      <span class="support" title="Number of materials in this variant">{{ variant.objectIds.length }}</span>
-      <svg #svgContainer class="pattern-svg" aria-label="variant graph"></svg>
-    </div>
-  </div>
+  <table *ngIf="!loading" class="variants-table">
+    <thead>
+      <tr>
+        <th class="count-col">Occurrences</th>
+        <th>Variant</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        *ngFor="let variant of variants; trackBy: trackByVariant"
+        class="variant-row"
+        (click)="openStats(variant)"
+      >
+        <td class="count-col">
+          <label class="select-box" (click)="$event.stopPropagation()">
+            <input type="checkbox" [(ngModel)]="variant.selected">
+          </label>
+          <span class="support" title="Number of materials in this variant">
+            {{ variant.objectIds.length }}
+          </span>
+        </td>
+        <td class="variant-cell">
+          <svg #svgContainer class="pattern-svg" aria-label="variant graph"></svg>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
   <app-activity-stats-overlay
     *ngIf="statsObjectIds"

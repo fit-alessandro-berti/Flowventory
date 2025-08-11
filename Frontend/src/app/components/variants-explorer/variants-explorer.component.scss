@@ -71,29 +71,55 @@
   color: #6c757d;
 }
 
-.patterns-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+/* === table layout for variants === */
+.variants-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
 }
 
-.pattern-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  background-color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0.25rem;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+.variants-table thead th {
+  text-align: left;
+  font-weight: 700;
+  color: #495057;
+  border-bottom: 2px solid #e9ecef;
+  padding: 0.5rem 0.75rem;
+}
 
-  .support {
-    font-weight: 600;
-    color: #1976d2;
-    width: 3rem;
-  }
+.variants-table .count-col {
+  width: 9rem;
+  white-space: nowrap;
+}
 
-  .pattern-svg {
-    display: block;
-    max-width: 100%;
-  }
+.variants-table tbody td {
+  border-bottom: 1px solid #f1f3f5;
+  vertical-align: top;
+  padding: 0.5rem 0.75rem;
+}
+
+.variant-row:hover {
+  background: #f8f9fa;
+  cursor: pointer;
+}
+
+.select-box {
+  margin-right: 0.5rem;
+}
+
+.support {
+  font-weight: 700;
+  color: #1976d2;
+  font-size: 1.1rem;
+}
+
+/* Graph cell */
+.variant-cell {
+  width: 100%;
+}
+
+.pattern-svg {
+  display: block;
+  width: 100%;
+  height: auto; /* scale with cell width */
+  max-width: 100%;
 }
