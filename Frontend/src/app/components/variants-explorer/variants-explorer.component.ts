@@ -1,6 +1,15 @@
-import { Component, OnInit, AfterViewInit, ViewChildren, QueryList, ElementRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  AfterViewInit,
+  OnDestroy,
+  ViewChildren,
+  QueryList,
+  ElementRef
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { ActivityStatsOverlayComponent } from '../activity-stats-overlay/activity-stats-overlay.component';
 import { OcelDataService } from '../../services/ocel-data.service';
 import { ViewStateService } from '../../services/view-state.service';
@@ -18,9 +27,9 @@ interface Variant {
   standalone: true,
   imports: [CommonModule, FormsModule, ActivityStatsOverlayComponent],
   templateUrl: './variants-explorer.component.html',
-  styleUrl: './variants-explorer.component.scss'
+  styleUrls: ['./variants-explorer.component.scss']
 })
-export class VariantsExplorerComponent implements OnInit, AfterViewInit {
+export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly leadObjectType = 'MAT_PLA';
   includeE2OEdges = true;
   dfSequenceLength = 2;
@@ -35,6 +44,9 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
   private ocelData: OCELData | null = null;
   private elk = new ELK();
 
+  private dataSub?: Subscription;
+  private viewChangesSub?: Subscription;
+
   statsObjectIds: string[] | null = null;
 
   constructor(
@@ -43,7 +55,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    this.ocelDataService.ocelData$.subscribe(data => {
+    this.dataSub = this.ocelDataService.ocelData$.subscribe(data => {
       if (data) {
         this.ocelData = data;
         this.computeVariants();
@@ -53,9 +65,20 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    // Render when DOM nodes (svgs) are available or change
+    this.viewChangesSub = this.svgContainers.changes.subscribe(() => {
+      this.renderGraphs();
+    });
+
     if (!this.loading) {
+      // If data already present by now, render once
       this.renderGraphs();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.dataSub?.unsubscribe();
+    this.viewChangesSub?.unsubscribe();
   }
 
   onSettingsUpdate(): void {
@@ -64,11 +87,14 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
     }
   }
 
+  /** Groups materials (lead objects) that share the same object-centric variant */
   private computeVariants(): void {
     if (!this.ocelData) return;
+
     const objectIndex = new Map<string, OCELObject>();
     this.ocelData.objects.forEach(o => objectIndex.set(o.id, o));
 
+    // objectId -> events touching it
     const eventsIndex = new Map<string, OCELEvent[]>();
     this.ocelData.events.forEach(ev => {
       ev.relationships.forEach(rel => {
@@ -83,7 +109,10 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
     const statusAttrs = ['Status', 'Current Status'];
     const variantMap = new Map<string, Variant>();
 
-    leadObjects.forEach(mat => {
+    const allowedE2O = new Set(['PO_ITEM', 'SO_ITEM', 'SUPPLIER', this.leadObjectType]);
+
+    for (const mat of leadObjects) {
+      // Pull the connected component around this material
       const visitedObjects = new Set<string>([mat.id]);
       const eventMap = new Map<string, OCELEvent>();
       const queue: string[] = [mat.id];
@@ -91,32 +120,31 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
       while (queue.length) {
         const oid = queue.shift()!;
         const relatedEvents = eventsIndex.get(oid) || [];
-        relatedEvents.forEach(ev => {
+        for (const ev of relatedEvents) {
           if (!eventMap.has(ev.id)) {
             eventMap.set(ev.id, ev);
-            ev.relationships.forEach(rel => {
+            for (const rel of ev.relationships) {
               if (!visitedObjects.has(rel.objectId)) {
                 visitedObjects.add(rel.objectId);
                 queue.push(rel.objectId);
               }
-            });
+            }
           }
-        });
+        }
       }
 
       const allEvents = Array.from(eventMap.values()).sort(
         (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
       );
 
+      // Segment by status if requested
       const segments: OCELEvent[][] = [];
       if (this.selectedStatus === 'All') {
         if (allEvents.length) segments.push(allEvents);
       } else {
         let current: OCELEvent[] = [];
-        allEvents.forEach(ev => {
-          const st = String(
-            ev.attributes.find(a => statusAttrs.includes(a.name))?.value || ''
-          );
+        for (const ev of allEvents) {
+          const st = String(ev.attributes.find(a => statusAttrs.includes(a.name))?.value || '');
           if (st === this.selectedStatus) {
             current.push(ev);
           } else {
@@ -125,84 +153,93 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
               current = [];
             }
           }
-        });
+        }
         if (current.length) segments.push(current);
       }
 
-      segments.forEach(segEvents => {
+      // Build variant features for each segment
+      for (const segEvents of segments) {
+        // Object -> its events (preserving global chronological order)
         const eventsByObject = new Map<string, OCELEvent[]>();
-        segEvents.forEach(ev => {
-          ev.relationships.forEach(rel => {
+        for (const ev of segEvents) {
+          for (const rel of ev.relationships) {
             if (!eventsByObject.has(rel.objectId)) {
               eventsByObject.set(rel.objectId, []);
             }
             eventsByObject.get(rel.objectId)!.push(ev);
-          });
-        });
+          }
+        }
 
         const edges: string[] = [];
-        const objectLabels = new Map<string, string>();
-        const objectCounters: { [type: string]: number } = {};
 
-        segEvents.forEach(ev => {
-          ev.relationships.forEach(rel => {
-            const obj = objectIndex.get(rel.objectId);
-            if (!obj) return;
-            if (obj.type === this.leadObjectType) return;
-            if (obj.type === 'PO_ITEM' || obj.type === 'SO_ITEM' || obj.type === 'SUPPLIER') {
-              if (!objectLabels.has(obj.id)) {
-                const count = (objectCounters[obj.type] || 0) + 1;
-                objectCounters[obj.type] = count;
-                const baseLabel = obj.type === 'SUPPLIER' ? obj.id : `${obj.type}${count}`;
-                objectLabels.set(obj.id, baseLabel);
-              }
-              const label = objectLabels.get(obj.id)!;
-              if (this.includeE2OEdges) {
-                edges.push(`${ev.type}-->${label}(e2o)`);
-              }
+        // Canonical e2o edges by object TYPE (object-centric & grouping-friendly)
+        if (this.includeE2OEdges) {
+          for (const ev of segEvents) {
+            for (const rel of ev.relationships) {
+              const obj = objectIndex.get(rel.objectId);
+              if (!obj) continue;
+              if (!allowedE2O.has(obj.type)) continue;
+              // Event-to-objectType edge, not per-object instance
+              edges.push(`${ev.type}-->${obj.type}(e2o)`);
             }
-          });
-        });
+          }
+        }
 
-        const involvedObjects: { id: string; type: string }[] = [{ id: mat.id, type: 'MAT_PLA' }];
-        objectLabels.forEach((label, id) => {
-          const obj = objectIndex.get(id)!;
-          involvedObjects.push({ id: obj.id, type: obj.type });
-        });
+        // Determine all objects involved in the segment (by id and their type)
+        const involvedObjects: { id: string; type: string }[] = [];
+        for (const oid of eventsByObject.keys()) {
+          const obj = objectIndex.get(oid);
+          if (obj) involvedObjects.push({ id: oid, type: obj.type });
+        }
+        // Ensure the lead material is included even if it had no direct events in this segment
+        if (!involvedObjects.some(o => o.id === mat.id)) {
+          involvedObjects.push({ id: mat.id, type: this.leadObjectType });
+        }
 
-        involvedObjects.forEach(objInfo => {
+        // DF n-grams per object TYPE (object-centric)
+        for (const objInfo of involvedObjects) {
           const objEvents = eventsByObject.get(objInfo.id) || [];
-          for (let i = 0; i <= objEvents.length - this.dfSequenceLength; i++) {
-            const seq = objEvents
+          if (objEvents.length >= this.dfSequenceLength) {
+            for (let i = 0; i <= objEvents.length - this.dfSequenceLength; i++) {
+              const seq = objEvents
+                .slice(i, i + this.dfSequenceLength)
+                .map(e => e.type)
+                .join('-->');
+              edges.push(`${seq}(df_${objInfo.type})`);
+            }
+          }
+        }
+
+        // Global DF n-grams across all events in the segment (optional but useful)
+        if (segEvents.length >= this.dfSequenceLength) {
+          for (let i = 0; i <= segEvents.length - this.dfSequenceLength; i++) {
+            const seq = segEvents
               .slice(i, i + this.dfSequenceLength)
               .map(e => e.type)
               .join('-->');
-            edges.push(`${seq}(df_${objInfo.type})`);
+            edges.push(`${seq}(df_GLOBAL)`);
           }
-        });
-
-        for (let i = 0; i <= segEvents.length - this.dfSequenceLength; i++) {
-          const seq = segEvents
-            .slice(i, i + this.dfSequenceLength)
-            .map(e => e.type)
-            .join('-->');
-          edges.push(`${seq}(df_GLOBAL)`);
         }
 
+        // Canonical transaction (unique + sorted)
         const transaction = Array.from(new Set(edges));
         const key = transaction.slice().sort().join('|');
-        if (!variantMap.has(key)) {
-          variantMap.set(key, { edges: transaction, objectIds: [mat.id] });
+
+        const v = variantMap.get(key);
+        if (v) {
+          v.objectIds.push(mat.id);
         } else {
-          variantMap.get(key)!.objectIds.push(mat.id);
+          variantMap.set(key, { edges: transaction, objectIds: [mat.id] });
         }
-      });
-    });
+      }
+    }
 
     this.variants = Array.from(variantMap.values()).sort(
       (a, b) => b.objectIds.length - a.objectIds.length
     );
-    setTimeout(() => this.renderGraphs(), 50);
+
+    // Draw once the DOM updates with new svgs
+    setTimeout(() => this.renderGraphs(), 0);
   }
 
   applyFilter(): void {
@@ -222,43 +259,62 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
     this.statsObjectIds = null;
   }
 
+  trackByVariant(index: number, v: Variant): string {
+    // A stable key for the variant card
+    return v.edges.slice().sort().join('|');
+  }
+
+  /** Parses a variant’s canonical features into a graph model for drawing */
   private parseVariant(variant: Variant): {
-    nodes: { id: string; type: string }[];
+    nodes: { id: string; type: 'event' | 'object' }[];
     edges: { id: string; source: string; target: string; label: string }[];
   } {
-    const nodesMap = new Map<string, { id: string; type: string }>();
+    const nodesMap = new Map<string, { id: string; type: 'event' | 'object' }>();
     const edges: { id: string; source: string; target: string; label: string }[] = [];
 
-    variant.edges.forEach(e => {
-      const [base, type] = e.split('(');
-      const t = type.slice(0, -1);
+    for (const feat of variant.edges) {
+      // robust split "base(type)"
+      const openIdx = feat.lastIndexOf('(');
+      if (openIdx === -1 || !feat.endsWith(')')) continue;
+      const base = feat.slice(0, openIdx);
+      const t = feat.slice(openIdx + 1, -1); // drop ")"
+
       if (t.startsWith('df_')) {
-        const objType = t.replace('df_', '');
-        const [src, tgt] = base.split('-->');
-        const srcId = objType === 'GLOBAL' ? src : `${src}_${objType}`;
-        const tgtId = objType === 'GLOBAL' ? tgt : `${tgt}_${objType}`;
-        nodesMap.set(srcId, { id: srcId, type: 'event' });
-        nodesMap.set(tgtId, { id: tgtId, type: 'event' });
-        edges.push({
-          id: e,
-          source: srcId,
-          target: tgtId,
-          label: objType === 'GLOBAL' ? '' : objType
-        });
+        const objType = t.substring(3); // after "df_"
+        const steps = base.split('-->');
+        // Expand n-gram into pairwise edges for visualization
+        for (let i = 0; i < steps.length - 1; i++) {
+          const src = objType === 'GLOBAL' ? steps[i] : `${steps[i]}_${objType}`;
+          const tgt = objType === 'GLOBAL' ? steps[i + 1] : `${steps[i + 1]}_${objType}`;
+
+          nodesMap.set(src, { id: src, type: 'event' });
+          nodesMap.set(tgt, { id: tgt, type: 'event' });
+
+          edges.push({
+            id: `${feat}#${i}`, // ensure unique id per expanded edge
+            source: src,
+            target: tgt,
+            label: objType === 'GLOBAL' ? '' : objType
+          });
+        }
       } else if (t === 'e2o') {
-        const [evType, objLabel] = base.split('-->');
-        const objId = objLabel;
-        const evId = `${evType}_${objId}`;
+        // base is "EventType-->ObjectType"
+        const [evType, objType] = base.split('-->');
+        if (!evType || !objType) continue;
+
+        const evId = `${evType}_${objType}`;
+
         nodesMap.set(evId, { id: evId, type: 'event' });
-        nodesMap.set(objId, { id: objId, type: 'object' });
+        nodesMap.set(objType, { id: objType, type: 'object' });
+
         edges.push({
-          id: e,
+          id: feat,
           source: evId,
-          target: objId,
+          target: objType,
           label: ''
         });
       }
-    });
+    }
 
     return {
       nodes: Array.from(nodesMap.values()),
@@ -268,25 +324,34 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
 
   private async renderGraphs(): Promise<void> {
     if (!this.svgContainers) return;
+    const svgs = this.svgContainers.toArray();
     const promises = this.variants.map((variant, idx) =>
-      this.renderVariantGraph(variant, this.svgContainers.toArray()[idx].nativeElement)
+      this.renderVariantGraph(variant, svgs[idx]?.nativeElement)
     );
     await Promise.all(promises);
   }
 
-  private async renderVariantGraph(variant: Variant, svg: SVGSVGElement): Promise<void> {
+  private async renderVariantGraph(variant: Variant, svg?: SVGSVGElement): Promise<void> {
+    if (!svg) return;
     const graph = this.parseVariant(variant);
 
     const nodesWithMetrics = graph.nodes.map(n => ({
       ...n,
-      lines: [n.id.replace(/_.*/, '')],
-      width: 80,
-      height: 40
+      // show only the event name before "_TYPE" to keep cards compact
+      lines: [n.type === 'event' ? n.id.replace(/_.*/, '') : n.id],
+      width: 92,
+      height: 44
     }));
 
     const elkGraph = {
       id: 'root',
-      layoutOptions: { 'elk.algorithm': 'layered', 'elk.direction': 'RIGHT' },
+      layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.layered.spacing.nodeNodeBetweenLayers': '40',
+        'elk.spacing.nodeNode': '24',
+        'elk.edgeRouting': 'ORTHOGONAL'
+      },
       children: nodesWithMetrics.map(n => ({
         id: n.id,
         width: n.width,
@@ -300,6 +365,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
       const layout = await this.elk.layout(elkGraph);
       this.drawPattern(layout, { nodes: nodesWithMetrics, edges: graph.edges }, svg);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error laying out variant graph:', err);
     }
   }
@@ -307,7 +373,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
   private drawPattern(
     layout: any,
     graph: {
-      nodes: { id: string; type: string; lines: string[]; width: number; height: number }[];
+      nodes: { id: string; type: 'event' | 'object'; lines: string[]; width: number; height: number }[];
       edges: { id: string; source: string; target: string; label: string }[];
     },
     svg: SVGSVGElement
@@ -318,8 +384,8 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
     const width = layout.width + 2 * padding;
     const height = layout.height + 2 * padding;
     svg.setAttribute('viewBox', `${-padding} ${-padding} ${width} ${height}`);
-    svg.setAttribute('width', width.toString());
-    svg.setAttribute('height', height.toString());
+    svg.setAttribute('width', `${width}`);
+    svg.setAttribute('height', `${height}`);
 
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
@@ -340,9 +406,10 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
 
     layout.edges.forEach((edge: any) => {
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      const points = edge.sections[0].bendPoints || [];
-      const start = edge.sections[0].startPoint;
-      const end = edge.sections[0].endPoint;
+      const section = edge.sections[0];
+      const points = section.bendPoints || [];
+      const start = section.startPoint;
+      const end = section.endPoint;
       let d = `M ${start.x} ${start.y}`;
       points.forEach((p: any) => {
         d += ` L ${p.x} ${p.y}`;
@@ -353,18 +420,21 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
       path.setAttribute('stroke-width', '2');
       path.setAttribute('fill', 'none');
       path.setAttribute('marker-end', 'url(#arrow)');
+
       const label = graph.edges.find(e => e.id === edge.id)?.label || '';
       if (label) {
         const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
         title.textContent = label;
         path.appendChild(title);
       }
+
       edgeGroup.appendChild(path);
     });
 
     svg.appendChild(edgeGroup);
 
     const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
     layout.children.forEach((node: any) => {
       const info = graph.nodes.find(n => n.id === node.id)!;
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -400,6 +470,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('font-size', '12');
       text.setAttribute('fill', '#333');
+
       info.lines.forEach((line, idx) => {
         const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
         tspan.setAttribute('x', (node.x + node.width / 2).toString());
@@ -407,12 +478,11 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit {
         tspan.textContent = line;
         text.appendChild(tspan);
       });
-      g.appendChild(text);
 
+      g.appendChild(text);
       nodeGroup.appendChild(g);
     });
 
     svg.appendChild(nodeGroup);
   }
 }
-
