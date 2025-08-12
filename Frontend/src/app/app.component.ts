@@ -7,6 +7,7 @@ import { SaOcdfgComponent } from './components/sa-ocdfg/sa-ocdfg.component';
 import { CausalExplorerComponent } from './components/causal-explorer/causal-explorer.component';
 import { LifecyclePatternsComponent } from './components/lifecycle-patterns/lifecycle-patterns.component';
 import { GraphPatternsComponent } from './components/graph-patterns/graph-patterns.component';
+import { VariantsExplorerComponent } from './components/variants-explorer/variants-explorer.component';
 import { EventContextComponent } from './components/event-context/event-context.component';
 import { ViewStateService } from './services/view-state.service';
 
@@ -22,6 +23,7 @@ import { ViewStateService } from './services/view-state.service';
     CausalExplorerComponent,
     LifecyclePatternsComponent,
     GraphPatternsComponent,
+    VariantsExplorerComponent,
     EventContextComponent
   ],
   templateUrl: './app.component.html',

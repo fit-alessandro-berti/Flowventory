@@ -41,6 +41,7 @@ export class NavigationComponent {
     { label: 'Causal Explorer', route: 'causal-explorer', icon: '🔍' },
     { label: 'Lifecycle Patterns', route: 'lifecycle-patterns', icon: '🧩' },
     { label: 'Graph Patterns', route: 'graph-patterns', icon: '📈' },
+    { label: 'Variants Explorer', route: 'variants-explorer', icon: '🧬' },
     { label: 'Event Context', route: 'event-context', icon: '📊' }
   ];
 

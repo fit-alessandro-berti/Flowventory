@@ -1,0 +1,55 @@
+<div class="variants-explorer-container">
+  <div class="controls">
+    <label for="dfLength">DF Seq Length:</label>
+    <input id="dfLength" type="number" min="2" [(ngModel)]="dfSequenceLength">
+
+    <label for="statusFilter">Status:</label>
+    <select id="statusFilter" [(ngModel)]="selectedStatus" (change)="onSettingsUpdate()">
+      <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+    </select>
+
+    <label class="checkbox">
+      <input type="checkbox" [(ngModel)]="includeE2OEdges" (change)="onSettingsUpdate()">
+      Include e2o edges
+    </label>
+
+    <button class="update-btn" (click)="onSettingsUpdate()">Update</button>
+    <button class="filter-btn" (click)="applyFilter()">Filter</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Computing variants...</div>
+
+  <table *ngIf="!loading" class="variants-table">
+    <thead>
+      <tr>
+        <th class="count-col">Occurrences</th>
+        <th>Variant</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        *ngFor="let variant of variants; trackBy: trackByVariant"
+        class="variant-row"
+        (click)="openStats(variant)"
+      >
+        <td class="count-col">
+          <label class="select-box" (click)="$event.stopPropagation()">
+            <input type="checkbox" [(ngModel)]="variant.selected">
+          </label>
+          <span class="support" title="Number of materials in this variant">
+            {{ variant.objectIds.length }}
+          </span>
+        </td>
+        <td class="variant-cell">
+          <svg #svgContainer class="pattern-svg" aria-label="variant graph"></svg>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <app-activity-stats-overlay
+    *ngIf="statsObjectIds"
+    [objectIds]="statsObjectIds"
+    (close)="closeStats()"
+  ></app-activity-stats-overlay>
+</div>

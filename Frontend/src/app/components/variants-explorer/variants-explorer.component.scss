@@ -1,0 +1,125 @@
+.variants-explorer-container {
+  padding: 1.5rem;
+  height: 100%;
+  overflow: auto;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  label {
+    font-weight: 600;
+    color: #495057;
+  }
+
+  select {
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    min-width: 200px;
+  }
+
+  input {
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    width: 80px;
+  }
+
+  input[type="checkbox"] {
+    width: auto;
+    padding: 0;
+  }
+
+  .checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background-color: #1976d2;
+    color: #fff;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #155a9c;
+  }
+
+  .filter-btn {
+    background-color: #28a745;
+  }
+
+  .filter-btn:hover {
+    background-color: #1e7e34;
+  }
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+/* === table layout for variants === */
+.variants-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.variants-table thead th {
+  text-align: left;
+  font-weight: 700;
+  color: #495057;
+  border-bottom: 2px solid #e9ecef;
+  padding: 0.5rem 0.75rem;
+}
+
+.variants-table .count-col {
+  width: 9rem;
+  white-space: nowrap;
+}
+
+.variants-table tbody td {
+  border-bottom: 1px solid #f1f3f5;
+  vertical-align: top;
+  padding: 0.5rem 0.75rem;
+}
+
+.variant-row:hover {
+  background: #f8f9fa;
+  cursor: pointer;
+}
+
+.select-box {
+  margin-right: 0.5rem;
+}
+
+.support {
+  font-weight: 700;
+  color: #1976d2;
+  font-size: 1.1rem;
+}
+
+/* Graph cell */
+.variant-cell {
+  width: 100%;
+}
+
+.pattern-svg {
+  display: block;
+  width: 100%;
+  height: auto; /* scales to the cell width */
+  max-width: 100%;
+}
