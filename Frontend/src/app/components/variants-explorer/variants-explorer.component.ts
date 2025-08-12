@@ -242,7 +242,11 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
   /**
    * Build a sample graph for the variant using a representative material:
    * - event nodes in order
-   * - object nodes unified by object **id** (including the material itself)
+   * - object nodes unified by **alias** per material
+   *   - SUPPLIER keeps its real id
+   *   - material keeps its real id
+   *   - every other type gets a per-material running index: TYPE1, TYPE2, ...
+   *   The same original object id => same alias => same node across events.
    */
   private buildSampleGraphForVariant(variant: Variant): GraphModel | null {
     const match = this.getSampleSegmentForVariant(variant);
@@ -255,10 +259,38 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
 
     let prevEventId: string | null = null;
 
-    // Ensure lead material node exists (so repeated connections go to the same node)
+    // aliasing maps & counters are per-material
+    const aliasByObjId = new Map<string, string>();
+    const typeCounters: Record<string, number> = {};
+
+    const getAlias = (obj: OCELObject): { nodeKey: string; label: string; tooltip: string } => {
+      // material: always its own id
+      if (obj.type === this.leadObjectType) {
+        const label = obj.id;
+        return { nodeKey: `O_${label}`, label, tooltip: obj.type };
+      }
+      // supplier: keep real id
+      if (obj.type === 'SUPPLIER') {
+        const label = obj.id;
+        aliasByObjId.set(obj.id, label);
+        return { nodeKey: `O_${label}`, label, tooltip: obj.type };
+      }
+      // every other object gets TYPE# counted within the material
+      let alias = aliasByObjId.get(obj.id);
+      if (!alias) {
+        const next = (typeCounters[obj.type] || 0) + 1;
+        typeCounters[obj.type] = next;
+        alias = `${obj.type}${next}`;
+        aliasByObjId.set(obj.id, alias);
+      }
+      return { nodeKey: `O_${alias}`, label: alias, tooltip: `${obj.type} • ${obj.id}` };
+    };
+
+    // Pre-create material node so edges from events unify into the same ellipse
     const matObj = this.objectById.get(matId);
     if (matObj && this.includeE2OEdges) {
-      nodesMap.set(`O_${matObj.id}`, { id: `O_${matObj.id}`, type: 'object', label: matObj.id, tooltip: matObj.type });
+      const m = getAlias(matObj);
+      nodesMap.set(m.nodeKey, { id: m.nodeKey, type: 'object', label: m.label, tooltip: matObj.type });
     }
 
     events.forEach((ev, idx) => {
@@ -275,11 +307,11 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
           const obj = this.objectById.get(rel.objectId);
           if (!obj) continue;
 
-          const oid = `O_${obj.id}`;
-          if (!nodesMap.has(oid)) {
-            nodesMap.set(oid, { id: oid, type: 'object', label: obj.id, tooltip: obj.type });
+          const a = getAlias(obj);
+          if (!nodesMap.has(a.nodeKey)) {
+            nodesMap.set(a.nodeKey, { id: a.nodeKey, type: 'object', label: a.label, tooltip: a.tooltip });
           }
-          edges.push({ id: `EO_${idx}_${obj.id}`, source: eId, target: oid, label: '' });
+          edges.push({ id: `EO_${idx}_${obj.id}`, source: eId, target: a.nodeKey, label: '' });
         }
       }
     });
@@ -288,7 +320,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   private wrapLabel(text: string, max = 16): string[] {
-    const clean = String(text);
+    const clean = String(text).replace(/_/g, ' ');
     if (clean.length <= max) return [clean];
     const out: string[] = [];
     let i = 0;
