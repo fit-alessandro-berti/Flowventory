@@ -1,8 +1,5 @@
 <div class="variants-explorer-container">
   <div class="controls">
-    <label for="dfLength">DF Seq Length:</label>
-    <input id="dfLength" type="number" min="2" [(ngModel)]="dfSequenceLength">
-
     <label for="statusFilter">Status:</label>
     <select id="statusFilter" [(ngModel)]="selectedStatus" (change)="onSettingsUpdate()">
       <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
