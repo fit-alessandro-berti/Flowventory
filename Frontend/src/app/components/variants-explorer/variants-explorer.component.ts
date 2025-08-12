@@ -25,9 +25,14 @@ interface VariantStep {
 interface Variant {
   key: string;
   steps: VariantStep[];
-  objectIds: string[];
+  objectIds: string[]; // materials that match this variant
   selected?: boolean;
 }
+
+type GraphModel = {
+  nodes: { id: string; type: 'event' | 'object'; label: string; tooltip?: string }[];
+  edges: { id: string; source: string; target: string; label: string }[];
+};
 
 @Component({
   selector: 'app-variants-explorer',
@@ -39,8 +44,8 @@ interface Variant {
 export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly leadObjectType = 'MAT_PLA';
 
-  includeE2OEdges = true; // if false, variants only compare event types (ignores attached objects)
-  dfSequenceLength = 2;   // kept in UI; not used in grouping anymore (variants are full sequences)
+  includeE2OEdges = true; // when off, variants are grouped by pure event sequence
+  dfSequenceLength = 2;   // kept for UI parity
 
   variants: Variant[] = [];
   loading = true;
@@ -56,6 +61,10 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
   private dataSub?: Subscription;
   private viewChangesSub?: Subscription;
 
+  private objectById = new Map<string, OCELObject>();
+  private eventsByObject = new Map<string, OCELEvent[]>();
+  private readonly statusAttrs = ['Status', 'Current Status'];
+
   statsObjectIds: string[] | null = null;
 
   constructor(
@@ -67,6 +76,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
     this.dataSub = this.ocelDataService.ocelData$.subscribe(data => {
       if (data) {
         this.ocelData = data;
+        this.rebuildIndexes();
         this.computeVariants();
         this.loading = false;
       }
@@ -89,94 +99,97 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
     }
   }
 
+  /** Build quick lookups for objects and direct events per object */
+  private rebuildIndexes(): void {
+    if (!this.ocelData) return;
+
+    this.objectById.clear();
+    for (const o of this.ocelData.objects) this.objectById.set(o.id, o);
+
+    this.eventsByObject.clear();
+    for (const ev of this.ocelData.events) {
+      for (const rel of ev.relationships) {
+        const list = this.eventsByObject.get(rel.objectId) ?? [];
+        list.push(ev);
+        this.eventsByObject.set(rel.objectId, list);
+      }
+    }
+    // sort each object's events chronologically
+    for (const [, list] of this.eventsByObject) {
+      list.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    }
+  }
+
+  /** Split event sequence by selected status */
+  private segmentByStatus(events: OCELEvent[]): OCELEvent[][] {
+    if (this.selectedStatus === 'All') {
+      return events.length ? [events] : [];
+    }
+    const segments: OCELEvent[][] = [];
+    let cur: OCELEvent[] = [];
+    for (const ev of events) {
+      const st = String(ev.attributes.find(a => this.statusAttrs.includes(a.name))?.value || '');
+      if (st === this.selectedStatus) cur.push(ev);
+      else {
+        if (cur.length) segments.push(cur);
+        cur = [];
+      }
+    }
+    if (cur.length) segments.push(cur);
+    return segments;
+  }
+
+  private buildStepsForEvents(evs: OCELEvent[]): VariantStep[] {
+    return evs.map(ev => {
+      const counts: Record<string, number> = {};
+      for (const rel of ev.relationships) {
+        const obj = this.objectById.get(rel.objectId);
+        if (!obj) continue;
+        if (obj.type === this.leadObjectType) continue; // exclude materials from the signature
+        counts[obj.type] = (counts[obj.type] || 0) + 1;
+      }
+      return { eventType: ev.type, objectTypeCounts: counts };
+    });
+  }
+
+  private stepsSignature(steps: VariantStep[]): string {
+    const tokens = steps.map(s => {
+      if (!this.includeE2OEdges) return s.eventType;
+      const parts = Object.keys(s.objectTypeCounts)
+        .sort()
+        .map(t => {
+          const c = s.objectTypeCounts[t];
+          return c > 1 ? `${t}x${c}` : t;
+        });
+      return parts.length ? `${s.eventType}[${parts.join('+')}]` : s.eventType;
+    });
+    return tokens.join('->');
+  }
+
   /**
-   * NEW: Object-centric variants based on the DIRECT events of each material.
-   * For each event, we capture the set (with multiplicity) of other object TYPES
-   * attached to that event (excluding any materials), and use the ordered sequence
-   * of these steps as the variant key.
+   * Variants = ordered sequence of direct material events.
+   * Optionally includes attached object TYPE multiset at each step.
    */
   private computeVariants(): void {
     if (!this.ocelData) return;
-
-    const objectById = new Map<string, OCELObject>();
-    this.ocelData.objects.forEach(o => objectById.set(o.id, o));
-
-    // Index: objectId -> events that directly reference it
-    const eventsByObject = new Map<string, OCELEvent[]>();
-    this.ocelData.events.forEach(ev => {
-      ev.relationships.forEach(rel => {
-        if (!eventsByObject.has(rel.objectId)) {
-          eventsByObject.set(rel.objectId, []);
-        }
-        eventsByObject.get(rel.objectId)!.push(ev);
-      });
-    });
+    this.rebuildIndexes();
 
     const materials = this.ocelData.objects.filter(o => o.type === this.leadObjectType);
-    const statusAttrs = ['Status', 'Current Status'];
     const variantMap = new Map<string, Variant>();
 
-    const buildSteps = (mat: OCELObject, evs: OCELEvent[]): VariantStep[] => {
-      return evs.map(ev => {
-        const counts: Record<string, number> = {};
-        for (const rel of ev.relationships) {
-          const obj = objectById.get(rel.objectId);
-          if (!obj) continue;
-          // Exclude all materials (lead objects) from the per-event attachment profile
-          if (obj.type === this.leadObjectType) continue;
-          counts[obj.type] = (counts[obj.type] || 0) + 1;
-        }
-        return { eventType: ev.type, objectTypeCounts: counts };
-      });
-    };
-
-    const stepsSignature = (steps: VariantStep[]): string => {
-      const tokens = steps.map(s => {
-        if (!this.includeE2OEdges) return s.eventType;
-        const parts = Object.keys(s.objectTypeCounts)
-          .sort()
-          .map(t => {
-            const c = s.objectTypeCounts[t];
-            return c > 1 ? `${t}x${c}` : t;
-          });
-        return parts.length ? `${s.eventType}[${parts.join('+')}]` : s.eventType;
-      });
-      return tokens.join('->');
-    };
-
     for (const mat of materials) {
-      // DIRECT events for the material only (no BFS to other objects!)
-      let matEvents = (eventsByObject.get(mat.id) || []).slice();
-      matEvents.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-
-      // Segment by chosen status: "All" keeps the whole sequence; otherwise keep contiguous runs
-      const segments: OCELEvent[][] = [];
-      if (this.selectedStatus === 'All') {
-        if (matEvents.length) segments.push(matEvents);
-      } else {
-        let cur: OCELEvent[] = [];
-        for (const ev of matEvents) {
-          const st = String(ev.attributes.find(a => statusAttrs.includes(a.name))?.value || '');
-          if (st === this.selectedStatus) cur.push(ev);
-          else {
-            if (cur.length) segments.push(cur);
-            cur = [];
-          }
-        }
-        if (cur.length) segments.push(cur);
-      }
+      const seq = this.eventsByObject.get(mat.id) || [];
+      const segments = this.segmentByStatus(seq);
 
       for (const seg of segments) {
         if (!seg.length) continue;
-        const steps = buildSteps(mat, seg);
-        const key = stepsSignature(steps);
+        const steps = this.buildStepsForEvents(seg);
+        const key = this.stepsSignature(steps);
+        if (!key) continue;
 
-        const existing = variantMap.get(key);
-        if (existing) {
-          existing.objectIds.push(mat.id);
-        } else {
-          variantMap.set(key, { key, steps, objectIds: [mat.id] });
-        }
+        const v = variantMap.get(key);
+        if (v) v.objectIds.push(mat.id);
+        else variantMap.set(key, { key, steps, objectIds: [mat.id] });
       }
     }
 
@@ -208,19 +221,49 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
     return v.key;
   }
 
-  /** Build a small graph: path of events; each event fans out to its non-material object types. */
-  private parseVariant(variant: Variant): {
-    nodes: { id: string; type: 'event' | 'object'; label: string }[];
-    edges: { id: string; source: string; target: string; label: string }[];
-  } {
-    const nodes: { id: string; type: 'event' | 'object'; label: string }[] = [];
+  /** Find a representative segment (for the first material in the variant) that matches the variant.key */
+  private getSampleSegmentForVariant(variant: Variant): { matId: string; events: OCELEvent[] } | null {
+    if (!this.ocelData || variant.objectIds.length === 0) return null;
+
+    for (const matId of variant.objectIds) {
+      const seq = this.eventsByObject.get(matId) || [];
+      const segments = this.segmentByStatus(seq);
+      for (const seg of segments) {
+        const steps = this.buildStepsForEvents(seg);
+        const key = this.stepsSignature(steps);
+        if (key === variant.key) {
+          return { matId, events: seg };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Build a sample graph for the variant using a representative material:
+   * - event nodes in order
+   * - object nodes unified by object **id** (including the material itself)
+   */
+  private buildSampleGraphForVariant(variant: Variant): GraphModel | null {
+    const match = this.getSampleSegmentForVariant(variant);
+    if (!match) return null;
+
+    const { matId, events } = match;
+
+    const nodesMap = new Map<string, { id: string; type: 'event' | 'object'; label: string; tooltip?: string }>();
     const edges: { id: string; source: string; target: string; label: string }[] = [];
 
     let prevEventId: string | null = null;
 
-    variant.steps.forEach((step, idx) => {
-      const eId = `E${idx}_${step.eventType}`;
-      nodes.push({ id: eId, type: 'event', label: step.eventType });
+    // Ensure lead material node exists (so repeated connections go to the same node)
+    const matObj = this.objectById.get(matId);
+    if (matObj && this.includeE2OEdges) {
+      nodesMap.set(`O_${matObj.id}`, { id: `O_${matObj.id}`, type: 'object', label: matObj.id, tooltip: matObj.type });
+    }
+
+    events.forEach((ev, idx) => {
+      const eId = `E_${idx}_${ev.id}`;
+      nodesMap.set(eId, { id: eId, type: 'event', label: ev.type });
 
       if (prevEventId) {
         edges.push({ id: `EE_${idx - 1}_${idx}`, source: prevEventId, target: eId, label: '' });
@@ -228,34 +271,32 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
       prevEventId = eId;
 
       if (this.includeE2OEdges) {
-        const entries = Object.entries(step.objectTypeCounts);
-        for (const [type, cnt] of entries) {
-          const oId = `O${idx}_${type}`;
-          const oLabel = cnt > 1 ? `${type} × ${cnt}` : type;
-          nodes.push({ id: oId, type: 'object', label: oLabel });
-          edges.push({ id: `EO_${idx}_${type}`, source: eId, target: oId, label: '' });
+        for (const rel of ev.relationships) {
+          const obj = this.objectById.get(rel.objectId);
+          if (!obj) continue;
+
+          const oid = `O_${obj.id}`;
+          if (!nodesMap.has(oid)) {
+            nodesMap.set(oid, { id: oid, type: 'object', label: obj.id, tooltip: obj.type });
+          }
+          edges.push({ id: `EO_${idx}_${obj.id}`, source: eId, target: oid, label: '' });
         }
       }
     });
 
-    return { nodes, edges };
+    return { nodes: Array.from(nodesMap.values()), edges };
   }
 
-  private wrapLabel(text: string, max = 14): string[] {
-    const clean = text.replace(/_/g, ' ');
-    const words = clean.split(' ');
-    const lines: string[] = [];
-    let line = '';
-    for (const w of words) {
-      if ((line + ' ' + w).trim().length <= max) {
-        line = (line ? line + ' ' : '') + w;
-      } else {
-        if (line) lines.push(line);
-        line = w;
-      }
+  private wrapLabel(text: string, max = 16): string[] {
+    const clean = String(text);
+    if (clean.length <= max) return [clean];
+    const out: string[] = [];
+    let i = 0;
+    while (i < clean.length) {
+      out.push(clean.slice(i, i + max));
+      i += max;
     }
-    if (line) lines.push(line);
-    return lines;
+    return out;
   }
 
   private async renderGraphs(): Promise<void> {
@@ -269,13 +310,18 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
 
   private async renderVariantGraph(variant: Variant, svg?: SVGSVGElement): Promise<void> {
     if (!svg) return;
-    const graph = this.parseVariant(variant);
+
+    const graph = this.buildSampleGraphForVariant(variant);
+    if (!graph) {
+      svg.innerHTML = '';
+      return;
+    }
 
     const nodesWithMetrics = graph.nodes.map(n => ({
       ...n,
       lines: this.wrapLabel(n.label, 14),
-      width: n.type === 'event' ? 110 : 92,
-      height: n.type === 'event' ? 48 : 36
+      width: n.type === 'event' ? 120 : 110,
+      height: n.type === 'event' ? 52 : 40
     }));
 
     const elkGraph = {
@@ -307,7 +353,7 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
   private drawPattern(
     layout: any,
     graph: {
-      nodes: { id: string; type: 'event' | 'object'; lines: string[]; width: number; height: number }[];
+      nodes: { id: string; type: 'event' | 'object'; lines: string[]; width: number; height: number; tooltip?: string }[];
       edges: { id: string; source: string; target: string; label: string }[];
     },
     svg: SVGSVGElement
@@ -398,6 +444,12 @@ export class VariantsExplorerComponent implements OnInit, AfterViewInit, OnDestr
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('font-size', '12');
       text.setAttribute('fill', '#333');
+
+      if (info.tooltip) {
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = info.tooltip;
+        text.appendChild(title);
+      }
 
       info.lines.forEach((line, idx) => {
         const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
